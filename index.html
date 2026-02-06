@@ -1,0 +1,2400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keepy Uppy - Cooperative Balloon Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+        }
+        #game-container {
+            border: 4px solid #4a4a6a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script>
+// ============================================================================
+// KEEPY UPPY - A Cooperative 2.5D Balloon Game
+// ============================================================================
+
+// Game configuration constants
+const CONFIG = {
+    width: 900,
+    height: 700,
+    roomPadding: 30,
+    floorY: 650,
+    playAreaTop: 180,  // More room to play
+
+    // Balloon settings
+    balloon: {
+        baseGravity: 40,           // Lower starting gravity (was 70)
+        gravityIncreasePerLevel: 8, // Increases faster per level
+        heavyGravityMultiplier: 1.5,
+        heavyBounceReduction: 0.25,
+        baseBounce: 0.75,          // Higher bounce (was 0.65)
+        hitForce: 280,             // Stronger hits (was 260)
+        maxVelocity: 300,
+        damping: 0.992,            // More damping = slower fall
+        windStrength: 8,           // Less wind (was 12)
+        windChangeInterval: 3000,
+        hitRange: 85,              // Easier to hit (was 70)
+        hitCooldown: 250
+    },
+
+    // Player settings
+    player: {
+        speed: 180,
+        runSpeed: 300,
+        slowedSpeedMultiplier: 0.55,
+        slowDuration: 3000,
+        size: { width: 28, height: 60 }
+    },
+
+    // Game rules
+    rules: {
+        maxLives: 4,
+        startLives: 4,
+        levelDuration: 30,
+        streakForLife: 10,
+        petTimeout: 10000,
+        brotherOnDuration: 10000,
+        brotherOffDuration: 10000
+    },
+
+    // Hazard settings
+    hazard: {
+        baseSpeed: 40,             // Slower hazards (was 60)
+        speedIncreasePerLevel: 8
+    },
+
+    // Brother NPC settings
+    brother: {
+        speed: 100,
+        pushCooldown: 2000,
+        pushStrength: 120,
+        activationRange: 80
+    },
+
+    // Dog NPC settings
+    dog: {
+        speed: 50,
+        petRange: 50,
+        roamChangeInterval: 1500
+    }
+};
+
+// ============================================================================
+// AVATAR CUSTOMIZATION SYSTEM
+// ============================================================================
+const AVATAR_OPTIONS = {
+    hairStyles: [
+        { id: 'default', name: 'Classic', cost: 0, spikes: 0 },
+        { id: 'spiky', name: 'Spiky', cost: 50, spikes: 3 },
+        { id: 'mohawk', name: 'Mohawk', cost: 100, spikes: 1, tall: true },
+        { id: 'long', name: 'Long', cost: 75, long: true },
+        { id: 'bald', name: 'Bald', cost: 25, bald: true }
+    ],
+    hairColors: [
+        { id: 'brown', name: 'Brown', cost: 0, color: 0x4a3728 },
+        { id: 'black', name: 'Black', cost: 0, color: 0x1a1a1a },
+        { id: 'blonde', name: 'Blonde', cost: 30, color: 0xf4d03f },
+        { id: 'red', name: 'Red', cost: 40, color: 0xc0392b },
+        { id: 'blue', name: 'Blue', cost: 60, color: 0x3498db },
+        { id: 'pink', name: 'Pink', cost: 60, color: 0xe91e63 },
+        { id: 'green', name: 'Green', cost: 60, color: 0x27ae60 }
+    ],
+    shirtColors: [
+        { id: 'blue', name: 'Blue', cost: 0, color: 0x4a90d9 },
+        { id: 'orange', name: 'Orange', cost: 0, color: 0xe67e22 },
+        { id: 'red', name: 'Red', cost: 20, color: 0xe74c3c },
+        { id: 'green', name: 'Green', cost: 20, color: 0x27ae60 },
+        { id: 'purple', name: 'Purple', cost: 30, color: 0x9b59b6 },
+        { id: 'yellow', name: 'Yellow', cost: 30, color: 0xf1c40f },
+        { id: 'black', name: 'Black', cost: 40, color: 0x2d3436 },
+        { id: 'white', name: 'White', cost: 40, color: 0xecf0f1 }
+    ],
+    shirtStyles: [
+        { id: 'plain', name: 'Plain', cost: 0 },
+        { id: 'striped', name: 'Striped', cost: 50 },
+        { id: 'numbered', name: 'Numbered', cost: 30 }
+    ],
+    pantsColors: [
+        { id: 'darkblue', name: 'Dark Blue', cost: 0, color: 0x3d5c8a },
+        { id: 'black', name: 'Black', cost: 20, color: 0x2d3436 },
+        { id: 'brown', name: 'Brown', cost: 20, color: 0x6b4423 },
+        { id: 'gray', name: 'Gray', cost: 25, color: 0x636e72 },
+        { id: 'white', name: 'White', cost: 35, color: 0xdfe6e9 },
+        { id: 'red', name: 'Red', cost: 40, color: 0xc0392b }
+    ],
+    shoesColors: [
+        { id: 'black', name: 'Black', cost: 0, color: 0x2d2d2d },
+        { id: 'white', name: 'White', cost: 20, color: 0xecf0f1 },
+        { id: 'red', name: 'Red', cost: 30, color: 0xe74c3c },
+        { id: 'blue', name: 'Blue', cost: 30, color: 0x3498db },
+        { id: 'gold', name: 'Gold', cost: 100, color: 0xf39c12 }
+    ]
+};
+
+// Player data manager
+const PlayerData = {
+    data: null,
+
+    load() {
+        const saved = localStorage.getItem('keepyUppy_playerData');
+        if (saved) {
+            this.data = JSON.parse(saved);
+        } else {
+            this.data = {
+                totalPoints: 0,
+                unlockedItems: ['default', 'brown', 'black', 'blue', 'orange', 'plain', 'darkblue', 'black'],
+                player1: {
+                    hairStyle: 'default',
+                    hairColor: 'brown',
+                    shirtColor: 'blue',
+                    shirtStyle: 'plain',
+                    pantsColor: 'darkblue',
+                    shoesColor: 'black'
+                },
+                player2: {
+                    hairStyle: 'default',
+                    hairColor: 'black',
+                    shirtColor: 'orange',
+                    shirtStyle: 'plain',
+                    pantsColor: 'darkblue',
+                    shoesColor: 'black'
+                }
+            };
+            this.save();
+        }
+        return this.data;
+    },
+
+    save() {
+        localStorage.setItem('keepyUppy_playerData', JSON.stringify(this.data));
+    },
+
+    addPoints(points) {
+        this.data.totalPoints += points;
+        this.save();
+    },
+
+    getPoints() {
+        return this.data.totalPoints;
+    },
+
+    isUnlocked(itemId) {
+        return this.data.unlockedItems.includes(itemId);
+    },
+
+    unlock(itemId, cost) {
+        if (this.data.totalPoints >= cost && !this.isUnlocked(itemId)) {
+            this.data.totalPoints -= cost;
+            this.data.unlockedItems.push(itemId);
+            this.save();
+            return true;
+        }
+        return false;
+    },
+
+    setPlayerOption(playerNum, category, value) {
+        const player = playerNum === 1 ? 'player1' : 'player2';
+        this.data[player][category] = value;
+        this.save();
+    },
+
+    getPlayerOption(playerNum, category) {
+        const player = playerNum === 1 ? 'player1' : 'player2';
+        return this.data[player][category];
+    }
+};
+
+// Load player data on start
+PlayerData.load();
+
+// ============================================================================
+// SOUND MANAGER - Web Audio API synthesized sounds
+// ============================================================================
+class SoundManager {
+    constructor() {
+        this.audioContext = null;
+        this.initialized = false;
+        this.muted = false;
+    }
+
+    init() {
+        if (this.initialized) return;
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.initialized = true;
+        } catch (e) {
+            console.warn('Web Audio API not supported');
+        }
+    }
+
+    // Create an oscillator-based sound
+    playTone(frequency, duration, type = 'sine', volume = 0.3, decay = true) {
+        if (!this.initialized || this.muted) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+
+        const now = this.audioContext.currentTime;
+        gainNode.gain.setValueAtTime(volume, now);
+
+        if (decay) {
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+        }
+
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+    }
+
+    // Balloon hit - cheerful boop
+    playHit() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(520, 0.1, 'sine', 0.25);
+        setTimeout(() => this.playTone(780, 0.1, 'sine', 0.2), 50);
+    }
+
+    // Life lost - sad descending tone
+    playLifeLost() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(400, 0.15, 'square', 0.2);
+        setTimeout(() => this.playTone(300, 0.15, 'square', 0.18), 100);
+        setTimeout(() => this.playTone(200, 0.3, 'square', 0.15), 200);
+    }
+
+    // Level up - triumphant fanfare
+    playLevelUp() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(523, 0.12, 'square', 0.2);  // C
+        setTimeout(() => this.playTone(659, 0.12, 'square', 0.2), 100);  // E
+        setTimeout(() => this.playTone(784, 0.12, 'square', 0.2), 200);  // G
+        setTimeout(() => this.playTone(1047, 0.3, 'square', 0.25), 300); // High C
+    }
+
+    // Life gained - happy arpeggio
+    playLifeGained() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(440, 0.1, 'sine', 0.2);
+        setTimeout(() => this.playTone(554, 0.1, 'sine', 0.2), 80);
+        setTimeout(() => this.playTone(659, 0.15, 'sine', 0.25), 160);
+    }
+
+    // Pet dog - cute sound
+    playPetDog() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(800, 0.08, 'sine', 0.15);
+        setTimeout(() => this.playTone(1000, 0.08, 'sine', 0.15), 60);
+        setTimeout(() => this.playTone(1200, 0.12, 'sine', 0.18), 120);
+    }
+
+    // Brother push - menacing thud
+    playBrotherPush() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(120, 0.2, 'sawtooth', 0.25);
+        this.playTone(80, 0.15, 'square', 0.15);
+    }
+
+    // Hazard hit - alarm buzz
+    playHazardHit() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(200, 0.1, 'sawtooth', 0.2);
+        setTimeout(() => this.playTone(150, 0.1, 'sawtooth', 0.2), 80);
+        setTimeout(() => this.playTone(200, 0.1, 'sawtooth', 0.15), 160);
+    }
+
+    // Game over - dramatic
+    playGameOver() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(392, 0.3, 'square', 0.2);  // G
+        setTimeout(() => this.playTone(330, 0.3, 'square', 0.2), 250);  // E
+        setTimeout(() => this.playTone(262, 0.3, 'square', 0.2), 500);  // C
+        setTimeout(() => this.playTone(196, 0.6, 'sawtooth', 0.25), 750);  // Low G
+    }
+
+    // Start game - ready sound
+    playStart() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(262, 0.1, 'square', 0.15);
+        setTimeout(() => this.playTone(330, 0.1, 'square', 0.15), 100);
+        setTimeout(() => this.playTone(392, 0.1, 'square', 0.15), 200);
+        setTimeout(() => this.playTone(523, 0.2, 'square', 0.2), 300);
+    }
+
+    // Pause toggle
+    playPause() {
+        if (!this.initialized || this.muted) return;
+        this.playTone(440, 0.1, 'sine', 0.15);
+    }
+
+    // Slowed effect
+    playSlowed() {
+        if (!this.initialized || this.muted) return;
+
+        this.playTone(300, 0.15, 'triangle', 0.15);
+        setTimeout(() => this.playTone(250, 0.2, 'triangle', 0.12), 100);
+    }
+
+    // Wall bounce
+    playWallBounce() {
+        if (!this.initialized || this.muted) return;
+        this.playTone(180, 0.08, 'sine', 0.1);
+    }
+
+    toggle() {
+        this.muted = !this.muted;
+        return this.muted;
+    }
+}
+
+// Global sound manager instance
+const soundManager = new SoundManager();
+
+// ============================================================================
+// CUSTOMIZE SCENE
+// ============================================================================
+class CustomizeScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'CustomizeScene' });
+    }
+
+    init(data) {
+        this.editingPlayer = data.player || 1;
+    }
+
+    create() {
+        const { width, height } = this.scale;
+
+        // Background
+        this.add.rectangle(width/2, height/2, width, height, 0x1a1a2e);
+
+        // Title
+        this.add.text(width/2, 40, 'CUSTOMIZE AVATAR', {
+            fontSize: '36px',
+            fontFamily: 'Arial Black',
+            color: '#4ecdc4'
+        }).setOrigin(0.5);
+
+        // Points display
+        this.pointsText = this.add.text(width/2, 80, `Points: ${PlayerData.getPoints()}`, {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#ffd93d'
+        }).setOrigin(0.5);
+
+        // Player tabs
+        this.createPlayerTabs(width);
+
+        // Preview area
+        this.previewContainer = this.add.container(700, 350);
+        this.updatePreview();
+
+        // Categories
+        this.categories = ['hairStyle', 'hairColor', 'shirtColor', 'shirtStyle', 'pantsColor', 'shoesColor'];
+        this.categoryNames = ['Hair Style', 'Hair Color', 'Shirt Color', 'Shirt Style', 'Pants Color', 'Shoes Color'];
+        this.categoryData = [
+            AVATAR_OPTIONS.hairStyles,
+            AVATAR_OPTIONS.hairColors,
+            AVATAR_OPTIONS.shirtColors,
+            AVATAR_OPTIONS.shirtStyles,
+            AVATAR_OPTIONS.pantsColors,
+            AVATAR_OPTIONS.shoesColors
+        ];
+
+        this.currentCategory = 0;
+        this.createCategoryButtons();
+        this.createOptionsList();
+
+        // Back button
+        const backBtn = this.add.text(100, height - 50, '← Back', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#fff',
+            backgroundColor: '#e74c3c',
+            padding: { x: 20, y: 10 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        backBtn.on('pointerover', () => backBtn.setColor('#ffcccc'));
+        backBtn.on('pointerout', () => backBtn.setColor('#fff'));
+        backBtn.on('pointerdown', () => {
+            this.scene.start('StartScene');
+        });
+    }
+
+    createPlayerTabs(width) {
+        const tab1 = this.add.text(width/2 - 80, 120, 'Player 1', {
+            fontSize: '20px',
+            fontFamily: 'Arial',
+            color: this.editingPlayer === 1 ? '#4a90d9' : '#666',
+            backgroundColor: this.editingPlayer === 1 ? '#2d3436' : '#1a1a2e',
+            padding: { x: 15, y: 8 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        const tab2 = this.add.text(width/2 + 80, 120, 'Player 2', {
+            fontSize: '20px',
+            fontFamily: 'Arial',
+            color: this.editingPlayer === 2 ? '#e67e22' : '#666',
+            backgroundColor: this.editingPlayer === 2 ? '#2d3436' : '#1a1a2e',
+            padding: { x: 15, y: 8 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        tab1.on('pointerdown', () => {
+            this.editingPlayer = 1;
+            this.scene.restart({ player: 1 });
+        });
+
+        tab2.on('pointerdown', () => {
+            this.editingPlayer = 2;
+            this.scene.restart({ player: 2 });
+        });
+    }
+
+    createCategoryButtons() {
+        this.categoryButtons = [];
+        const startY = 170;
+
+        this.categoryNames.forEach((name, i) => {
+            const btn = this.add.text(120, startY + i * 45, name, {
+                fontSize: '16px',
+                fontFamily: 'Arial',
+                color: i === this.currentCategory ? '#4ecdc4' : '#aaa',
+                backgroundColor: i === this.currentCategory ? '#2d3436' : '#1a1a2e',
+                padding: { x: 12, y: 8 }
+            }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+
+            btn.on('pointerdown', () => {
+                this.currentCategory = i;
+                this.refreshCategoryButtons();
+                this.refreshOptionsList();
+            });
+
+            this.categoryButtons.push(btn);
+        });
+    }
+
+    refreshCategoryButtons() {
+        this.categoryButtons.forEach((btn, i) => {
+            btn.setColor(i === this.currentCategory ? '#4ecdc4' : '#aaa');
+            btn.setBackgroundColor(i === this.currentCategory ? '#2d3436' : '#1a1a2e');
+        });
+    }
+
+    createOptionsList() {
+        this.optionsContainer = this.add.container(350, 170);
+        this.refreshOptionsList();
+    }
+
+    refreshOptionsList() {
+        this.optionsContainer.removeAll(true);
+
+        const options = this.categoryData[this.currentCategory];
+        const category = this.categories[this.currentCategory];
+        const currentValue = PlayerData.getPlayerOption(this.editingPlayer, category);
+
+        options.forEach((opt, i) => {
+            const y = i * 50;
+            const isUnlocked = PlayerData.isUnlocked(opt.id);
+            const isSelected = currentValue === opt.id;
+
+            // Option background
+            const bg = this.add.rectangle(100, y, 200, 40, isSelected ? 0x27ae60 : 0x2d3436);
+            bg.setStrokeStyle(2, isSelected ? 0x2ecc71 : 0x4a4a6a);
+            this.optionsContainer.add(bg);
+
+            // Color preview if applicable
+            if (opt.color !== undefined) {
+                const colorPreview = this.add.rectangle(20, y, 24, 24, opt.color);
+                colorPreview.setStrokeStyle(1, 0xffffff);
+                this.optionsContainer.add(colorPreview);
+            }
+
+            // Option name
+            const nameText = this.add.text(opt.color !== undefined ? 45 : 20, y, opt.name, {
+                fontSize: '16px',
+                fontFamily: 'Arial',
+                color: isUnlocked ? '#fff' : '#666'
+            }).setOrigin(0, 0.5);
+            this.optionsContainer.add(nameText);
+
+            // Cost or selected indicator
+            let statusText;
+            if (isSelected) {
+                statusText = '✓';
+            } else if (!isUnlocked) {
+                statusText = `${opt.cost} pts`;
+            } else {
+                statusText = '';
+            }
+
+            const status = this.add.text(180, y, statusText, {
+                fontSize: '14px',
+                fontFamily: 'Arial',
+                color: isUnlocked ? '#2ecc71' : '#ffd93d'
+            }).setOrigin(1, 0.5);
+            this.optionsContainer.add(status);
+
+            // Make interactive
+            bg.setInteractive({ useHandCursor: true });
+            bg.on('pointerdown', () => this.selectOption(opt, category));
+        });
+    }
+
+    selectOption(opt, category) {
+        if (PlayerData.isUnlocked(opt.id)) {
+            // Already unlocked, just select it
+            PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
+            this.refreshOptionsList();
+            this.updatePreview();
+        } else if (PlayerData.getPoints() >= opt.cost) {
+            // Buy and select
+            if (PlayerData.unlock(opt.id, opt.cost)) {
+                PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
+                this.pointsText.setText(`Points: ${PlayerData.getPoints()}`);
+                this.refreshOptionsList();
+                this.updatePreview();
+                soundManager.playLifeGained();
+            }
+        } else {
+            // Not enough points
+            this.showMessage('Not enough points!');
+        }
+    }
+
+    showMessage(text) {
+        const msg = this.add.text(450, 620, text, {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#e74c3c',
+            backgroundColor: '#2d3436',
+            padding: { x: 15, y: 8 }
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+            targets: msg,
+            alpha: 0,
+            y: 600,
+            duration: 1500,
+            onComplete: () => msg.destroy()
+        });
+    }
+
+    updatePreview() {
+        this.previewContainer.removeAll(true);
+
+        const p = this.editingPlayer;
+        const hairStyleId = PlayerData.getPlayerOption(p, 'hairStyle');
+        const hairColorId = PlayerData.getPlayerOption(p, 'hairColor');
+        const shirtColorId = PlayerData.getPlayerOption(p, 'shirtColor');
+        const pantsColorId = PlayerData.getPlayerOption(p, 'pantsColor');
+        const shoesColorId = PlayerData.getPlayerOption(p, 'shoesColor');
+
+        const hairColor = AVATAR_OPTIONS.hairColors.find(h => h.id === hairColorId)?.color || 0x4a3728;
+        const shirtColor = AVATAR_OPTIONS.shirtColors.find(s => s.id === shirtColorId)?.color || 0x4a90d9;
+        const pantsColor = AVATAR_OPTIONS.pantsColors.find(p => p.id === pantsColorId)?.color || 0x3d5c8a;
+        const shoesColor = AVATAR_OPTIONS.shoesColors.find(s => s.id === shoesColorId)?.color || 0x2d2d2d;
+        const hairStyle = AVATAR_OPTIONS.hairStyles.find(h => h.id === hairStyleId) || AVATAR_OPTIONS.hairStyles[0];
+
+        // Scale up for preview
+        const scale = 2;
+
+        // Shadow
+        const shadow = this.add.ellipse(0, 32 * scale, 36 * scale, 14 * scale, 0x000000, 0.35);
+        this.previewContainer.add(shadow);
+
+        // Legs
+        const leftLeg = this.add.rectangle(-6 * scale, 22 * scale, 10 * scale, 24 * scale, pantsColor);
+        const rightLeg = this.add.rectangle(6 * scale, 22 * scale, 10 * scale, 24 * scale, pantsColor);
+        this.previewContainer.add(leftLeg);
+        this.previewContainer.add(rightLeg);
+
+        // Shoes
+        const leftShoe = this.add.ellipse(-6 * scale, 35 * scale, 12 * scale, 6 * scale, shoesColor);
+        const rightShoe = this.add.ellipse(6 * scale, 35 * scale, 12 * scale, 6 * scale, shoesColor);
+        this.previewContainer.add(leftShoe);
+        this.previewContainer.add(rightShoe);
+
+        // Torso
+        const torso = this.add.rectangle(0, -2 * scale, 24 * scale, 28 * scale, shirtColor);
+        this.previewContainer.add(torso);
+
+        // Arms
+        const leftArm = this.add.rectangle(-15 * scale, 0, 8 * scale, 22 * scale, 0xdeb887);
+        const rightArm = this.add.rectangle(15 * scale, 0, 8 * scale, 22 * scale, 0xdeb887);
+        this.previewContainer.add(leftArm);
+        this.previewContainer.add(rightArm);
+
+        // Hands
+        const leftHand = this.add.circle(-15 * scale, 12 * scale, 5 * scale, 0xdeb887);
+        const rightHand = this.add.circle(15 * scale, 12 * scale, 5 * scale, 0xdeb887);
+        this.previewContainer.add(leftHand);
+        this.previewContainer.add(rightHand);
+
+        // Neck
+        const neck = this.add.rectangle(0, -18 * scale, 8 * scale, 6 * scale, 0xdeb887);
+        this.previewContainer.add(neck);
+
+        // Head
+        const head = this.add.ellipse(0, -32 * scale, 20 * scale, 24 * scale, 0xdeb887);
+        this.previewContainer.add(head);
+
+        // Hair (based on style)
+        if (!hairStyle.bald) {
+            const hair = this.add.ellipse(0, -40 * scale, 22 * scale, 14 * scale, hairColor);
+            this.previewContainer.add(hair);
+
+            if (hairStyle.spikes > 0) {
+                for (let i = 0; i < hairStyle.spikes; i++) {
+                    const x = (i - (hairStyle.spikes - 1) / 2) * 8 * scale;
+                    const spikeHeight = hairStyle.tall ? 16 : 10;
+                    const spike = this.add.triangle(x, -48 * scale, 0, 0, -4 * scale, spikeHeight * scale, 4 * scale, spikeHeight * scale, hairColor);
+                    this.previewContainer.add(spike);
+                }
+            }
+
+            if (hairStyle.long) {
+                const longHairL = this.add.ellipse(-10 * scale, -30 * scale, 8 * scale, 20 * scale, hairColor);
+                const longHairR = this.add.ellipse(10 * scale, -30 * scale, 8 * scale, 20 * scale, hairColor);
+                this.previewContainer.add(longHairL);
+                this.previewContainer.add(longHairR);
+            }
+
+            // Hair sides
+            const hairLeft = this.add.ellipse(-9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
+            const hairRight = this.add.ellipse(9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
+            this.previewContainer.add(hairLeft);
+            this.previewContainer.add(hairRight);
+        }
+
+        // Eyes
+        const leftEye = this.add.ellipse(-5 * scale, -34 * scale, 4 * scale, 5 * scale, 0xffffff);
+        const rightEye = this.add.ellipse(5 * scale, -34 * scale, 4 * scale, 5 * scale, 0xffffff);
+        this.previewContainer.add(leftEye);
+        this.previewContainer.add(rightEye);
+
+        const leftPupil = this.add.circle(-5 * scale, -34 * scale, 2 * scale, 0x2d2d2d);
+        const rightPupil = this.add.circle(5 * scale, -34 * scale, 2 * scale, 0x2d2d2d);
+        this.previewContainer.add(leftPupil);
+        this.previewContainer.add(rightPupil);
+
+        // Mouth
+        const mouth = this.add.arc(0, -25 * scale, 4 * scale, 0, 180, false, 0xc9a66b);
+        this.previewContainer.add(mouth);
+    }
+}
+
+// ============================================================================
+// START SCENE
+// ============================================================================
+class StartScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'StartScene' });
+    }
+
+    create() {
+        const { width, height } = this.scale;
+
+        // Background
+        this.add.rectangle(width/2, height/2, width, height, 0x1a1a2e);
+
+        // Title
+        this.add.text(width/2, 100, 'KEEPY UPPY', {
+            fontSize: '64px',
+            fontFamily: 'Arial Black, Arial',
+            color: '#ff6b6b',
+            stroke: '#000',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        this.add.text(width/2, 160, 'Cooperative Balloon Game', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#4ecdc4'
+        }).setOrigin(0.5);
+
+        // Instructions
+        const instructions = [
+            '🎈 Keep the balloon off the floor!',
+            '',
+            '1 PLAYER: Arrows + SPACE',
+            '',
+            '2 PLAYERS:',
+            '  P1: WASD + SPACE    P2: Arrows + ENTER',
+            '',
+            'P = Pause    ESC = Exit    R = Restart',
+            '',
+            '💡 Hold movement for 1 sec to RUN!',
+            '💡 Keep a streak to regenerate lives!'
+        ];
+
+        this.add.text(width/2, 400, instructions.join('\n'), {
+            fontSize: '17px',
+            fontFamily: 'Arial',
+            color: '#fff',
+            align: 'center',
+            lineSpacing: 5
+        }).setOrigin(0.5);
+
+        // High score
+        const highestLevel = localStorage.getItem('keepyUppy_highestLevel') || 0;
+        this.add.text(width/2, 590, `Highest Level Reached: ${highestLevel}`, {
+            fontSize: '22px',
+            fontFamily: 'Arial',
+            color: '#ffd93d'
+        }).setOrigin(0.5);
+
+        // Player mode selection
+        this.add.text(width/2, 620, 'Select Mode:', {
+            fontSize: '20px',
+            fontFamily: 'Arial',
+            color: '#aaa'
+        }).setOrigin(0.5);
+
+        // 1 Player button
+        const btn1P = this.add.text(width/2 - 100, 660, '[ 1 Player ]', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#4a90d9'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        // 2 Players button
+        const btn2P = this.add.text(width/2 + 100, 660, '[ 2 Players ]', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#e67e22'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        // Customize button
+        const btnCustomize = this.add.text(width/2, 610, '🎨 Customize', {
+            fontSize: '20px',
+            fontFamily: 'Arial',
+            color: '#9b59b6'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        // Points display
+        this.add.text(width/2, 575, `Points: ${PlayerData.getPoints()}`, {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffd93d'
+        }).setOrigin(0.5);
+
+        // Hover effects
+        btn1P.on('pointerover', () => btn1P.setColor('#74b9ff'));
+        btn1P.on('pointerout', () => btn1P.setColor('#4a90d9'));
+        btn2P.on('pointerover', () => btn2P.setColor('#fab1a0'));
+        btn2P.on('pointerout', () => btn2P.setColor('#e67e22'));
+        btnCustomize.on('pointerover', () => btnCustomize.setColor('#a66bbe'));
+        btnCustomize.on('pointerout', () => btnCustomize.setColor('#9b59b6'));
+
+        // Customize click
+        btnCustomize.on('pointerdown', () => {
+            soundManager.init();
+            this.scene.start('CustomizeScene', { player: 1 });
+        });
+
+        // Click handlers
+        btn1P.on('pointerdown', () => {
+            soundManager.init();
+            soundManager.playStart();
+            this.scene.start('GameScene', { playerCount: 1 });
+        });
+
+        btn2P.on('pointerdown', () => {
+            soundManager.init();
+            soundManager.playStart();
+            this.scene.start('GameScene', { playerCount: 2 });
+        });
+
+        // Keyboard shortcuts
+        this.input.keyboard.once('keydown-ONE', () => {
+            soundManager.init();
+            soundManager.playStart();
+            this.scene.start('GameScene', { playerCount: 1 });
+        });
+
+        this.input.keyboard.once('keydown-TWO', () => {
+            soundManager.init();
+            soundManager.playStart();
+            this.scene.start('GameScene', { playerCount: 2 });
+        });
+
+        // SPACE defaults to 2 players
+        this.input.keyboard.once('keydown-SPACE', () => {
+            soundManager.init();
+            soundManager.playStart();
+            this.scene.start('GameScene', { playerCount: 2 });
+        });
+    }
+}
+
+// ============================================================================
+// GAME SCENE
+// ============================================================================
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameScene' });
+    }
+
+    init(data) {
+        // Get player count from start scene (default to 2)
+        this.playerCount = data.playerCount || 2;
+    }
+
+    create() {
+        // Initialize game state
+        this.gameState = {
+            level: 1,
+            sharedLives: CONFIG.rules.startLives,
+            levelTimer: CONFIG.rules.levelDuration,
+            streakTimer: 0,
+            isPaused: false,
+            wind: { x: 0, y: 0 },
+            brotherActive: false,
+            brotherPhaseTimer: 0,
+            playerCount: this.playerCount
+        };
+
+        // Player states
+        this.player1State = {
+            hitCooldown: 0,
+            moveTime: 0,
+            score: 0
+        };
+
+        this.player2State = {
+            hitCooldown: 0,
+            moveTime: 0,
+            score: 0
+        };
+
+        // Create game elements
+        this.createRoom();
+        this.createPlayers();
+        this.createBalloon();
+        this.createObstacles();
+        this.createUI();
+        this.setupInput();
+        this.setupTimers();
+
+        // Physics collisions
+        this.setupCollisions();
+
+        // NPCs (will be spawned based on level)
+        this.hazards = this.physics.add.group();
+        this.brother = null;
+        this.dog = null;
+
+        // Initialize level entities
+        this.setupLevelEntities();
+    }
+
+    // -------------------------------------------------------------------------
+    // ROOM CREATION
+    // -------------------------------------------------------------------------
+    createRoom() {
+        const { width, height } = this.scale;
+        const padding = CONFIG.roomPadding;
+
+        // Room background - wooden floor with perspective
+        const floorGraphics = this.add.graphics();
+
+        // Floor base
+        floorGraphics.fillStyle(0x8b6914, 1);
+        floorGraphics.fillRect(padding, CONFIG.playAreaTop, width - padding*2, CONFIG.floorY - CONFIG.playAreaTop);
+
+        // Floor planks (horizontal lines for wood effect)
+        floorGraphics.lineStyle(1, 0x6b4f12, 0.3);
+        for (let y = CONFIG.playAreaTop; y < CONFIG.floorY; y += 25) {
+            floorGraphics.lineBetween(padding, y, width - padding, y);
+        }
+
+        // Vertical plank separations
+        floorGraphics.lineStyle(1, 0x5a4210, 0.2);
+        for (let x = padding; x < width - padding; x += 60) {
+            floorGraphics.lineBetween(x, CONFIG.playAreaTop, x, CONFIG.floorY);
+        }
+        floorGraphics.setDepth(-10);
+
+        // Back wall (darker, perspective feel)
+        const backWall = this.add.rectangle(width/2, CONFIG.playAreaTop/2 + 40, width - padding*2, CONFIG.playAreaTop - 20, 0x3d3d5c);
+        backWall.setDepth(-9);
+
+        // Baseboard
+        this.add.rectangle(width/2, CONFIG.playAreaTop + 5, width - padding*2, 10, 0x2d2d3c).setDepth(-8);
+
+        // Floor line indicator (danger zone)
+        this.floorLine = this.add.rectangle(width/2, CONFIG.floorY - 8, width - padding*2, 4, 0xff4757);
+        this.floorLine.setAlpha(0.6);
+        this.floorLine.setDepth(50);
+
+        // Danger zone gradient
+        const dangerZone = this.add.graphics();
+        dangerZone.fillGradientStyle(0xff4757, 0xff4757, 0xff4757, 0xff4757, 0.3, 0.3, 0, 0);
+        dangerZone.fillRect(padding, CONFIG.floorY - 40, width - padding*2, 40);
+        dangerZone.setDepth(-5);
+
+        // Walls (physics)
+        this.walls = this.physics.add.staticGroup();
+
+        // Left wall (visual + physics)
+        const leftWallVisual = this.add.rectangle(padding/2, height/2, padding, height, 0x4a4a6a);
+        this.walls.add(leftWallVisual);
+
+        // Right wall
+        const rightWallVisual = this.add.rectangle(width - padding/2, height/2, padding, height, 0x4a4a6a);
+        this.walls.add(rightWallVisual);
+
+        // Top wall (invisible physics boundary)
+        const topWall = this.add.rectangle(width/2, CONFIG.playAreaTop - 10, width, 20);
+        topWall.setAlpha(0);
+        this.walls.add(topWall);
+
+        // Floor boundary (invisible, for balloon detection)
+        this.floorBoundary = this.add.rectangle(width/2, CONFIG.floorY + 20, width, 10, 0xff0000);
+        this.floorBoundary.setAlpha(0);
+        this.physics.add.existing(this.floorBoundary, true);
+    }
+
+    // -------------------------------------------------------------------------
+    // PLAYER CREATION
+    // -------------------------------------------------------------------------
+    createPlayers() {
+        const { width } = this.scale;
+
+        if (this.playerCount === 1) {
+            // Single player - center position
+            this.player1 = this.createPlayer(width / 2, 450, 1);
+            this.player2 = null;
+        } else {
+            // Two players
+            this.player1 = this.createPlayer(250, 450, 1);
+            this.player2 = this.createPlayer(width - 250, 450, 2);
+        }
+    }
+
+    createPlayer(x, y, playerNum) {
+        // Get customization from PlayerData
+        const hairStyleId = PlayerData.getPlayerOption(playerNum, 'hairStyle');
+        const hairColorId = PlayerData.getPlayerOption(playerNum, 'hairColor');
+        const shirtColorId = PlayerData.getPlayerOption(playerNum, 'shirtColor');
+        const pantsColorId = PlayerData.getPlayerOption(playerNum, 'pantsColor');
+        const shoesColorId = PlayerData.getPlayerOption(playerNum, 'shoesColor');
+
+        const hairColor = AVATAR_OPTIONS.hairColors.find(h => h.id === hairColorId)?.color || 0x4a3728;
+        const shirtColor = AVATAR_OPTIONS.shirtColors.find(s => s.id === shirtColorId)?.color || 0x4a90d9;
+        const pantsColor = AVATAR_OPTIONS.pantsColors.find(p => p.id === pantsColorId)?.color || 0x3d5c8a;
+        const shoesColor = AVATAR_OPTIONS.shoesColors.find(s => s.id === shoesColorId)?.color || 0x2d2d2d;
+        const hairStyle = AVATAR_OPTIONS.hairStyles.find(h => h.id === hairStyleId) || AVATAR_OPTIONS.hairStyles[0];
+
+        const label = `P${playerNum}`;
+        const container = this.add.container(x, y);
+
+        // Shadow (larger, more realistic)
+        const shadow = this.add.ellipse(0, 32, 36, 14, 0x000000, 0.35);
+        container.add(shadow);
+
+        // Legs (two separate legs for realism)
+        const leftLeg = this.add.rectangle(-6, 22, 10, 24, pantsColor);
+        leftLeg.setStrokeStyle(1, Phaser.Display.Color.ValueToColor(pantsColor).darken(20).color);
+        container.add(leftLeg);
+
+        const rightLeg = this.add.rectangle(6, 22, 10, 24, pantsColor);
+        rightLeg.setStrokeStyle(1, Phaser.Display.Color.ValueToColor(pantsColor).darken(20).color);
+        container.add(rightLeg);
+
+        // Shoes
+        const leftShoe = this.add.ellipse(-6, 35, 12, 6, shoesColor);
+        const rightShoe = this.add.ellipse(6, 35, 12, 6, shoesColor);
+        container.add(leftShoe);
+        container.add(rightShoe);
+
+        // Torso (shirt)
+        const torso = this.add.rectangle(0, -2, 24, 28, shirtColor);
+        torso.setStrokeStyle(1, Phaser.Display.Color.ValueToColor(shirtColor).darken(30).color);
+        container.add(torso);
+
+        // Arms
+        const leftArm = this.add.rectangle(-15, 0, 8, 22, 0xdeb887); // Skin tone
+        leftArm.setStrokeStyle(1, 0xc9a66b);
+        container.add(leftArm);
+
+        const rightArm = this.add.rectangle(15, 0, 8, 22, 0xdeb887);
+        rightArm.setStrokeStyle(1, 0xc9a66b);
+        container.add(rightArm);
+
+        // Hands
+        const leftHand = this.add.circle(-15, 12, 5, 0xdeb887);
+        const rightHand = this.add.circle(15, 12, 5, 0xdeb887);
+        container.add(leftHand);
+        container.add(rightHand);
+
+        // Neck
+        const neck = this.add.rectangle(0, -18, 8, 6, 0xdeb887);
+        container.add(neck);
+
+        // Head
+        const head = this.add.ellipse(0, -32, 20, 24, 0xdeb887);
+        head.setStrokeStyle(1, 0xc9a66b);
+        container.add(head);
+
+        // Hair (based on style)
+        if (!hairStyle.bald) {
+            const hair = this.add.ellipse(0, -40, 22, 14, hairColor);
+            container.add(hair);
+
+            // Spiky hair
+            if (hairStyle.spikes > 0) {
+                for (let i = 0; i < hairStyle.spikes; i++) {
+                    const spikeX = (i - (hairStyle.spikes - 1) / 2) * 8;
+                    const spikeHeight = hairStyle.tall ? 16 : 10;
+                    const spike = this.add.triangle(spikeX, -48, 0, 0, -4, spikeHeight, 4, spikeHeight, hairColor);
+                    container.add(spike);
+                }
+            }
+
+            // Long hair
+            if (hairStyle.long) {
+                const longHairL = this.add.ellipse(-10, -30, 8, 20, hairColor);
+                const longHairR = this.add.ellipse(10, -30, 8, 20, hairColor);
+                container.add(longHairL);
+                container.add(longHairR);
+            }
+
+            // Hair sides
+            const hairLeft = this.add.ellipse(-9, -34, 6, 12, hairColor);
+            const hairRight = this.add.ellipse(9, -34, 6, 12, hairColor);
+            container.add(hairLeft);
+            container.add(hairRight);
+        }
+
+        // Eyes
+        const leftEye = this.add.ellipse(-5, -34, 4, 5, 0xffffff);
+        const rightEye = this.add.ellipse(5, -34, 4, 5, 0xffffff);
+        container.add(leftEye);
+        container.add(rightEye);
+
+        // Pupils
+        const leftPupil = this.add.circle(-5, -34, 2, 0x2d2d2d);
+        const rightPupil = this.add.circle(5, -34, 2, 0x2d2d2d);
+        container.add(leftPupil);
+        container.add(rightPupil);
+
+        // Eyebrows
+        const leftBrow = this.add.rectangle(-5, -40, 6, 2, hairColor);
+        const rightBrow = this.add.rectangle(5, -40, 6, 2, hairColor);
+        container.add(leftBrow);
+        container.add(rightBrow);
+
+        // Nose
+        const nose = this.add.triangle(0, -30, 0, 0, -3, 6, 3, 6, 0xc9a66b);
+        container.add(nose);
+
+        // Mouth (small smile)
+        const mouth = this.add.arc(0, -25, 4, 0, 180, false, 0xc9a66b);
+        container.add(mouth);
+
+        // Player label (small, below)
+        const text = this.add.text(0, 45, label, {
+            fontSize: '12px',
+            fontFamily: 'Arial Bold',
+            color: '#fff',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setOrigin(0.5);
+        container.add(text);
+
+        // Shirt number/detail
+        const shirtDetail = this.add.text(0, -4, label === 'P1' ? '1' : '2', {
+            fontSize: '14px',
+            fontFamily: 'Arial Black',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        container.add(shirtDetail);
+
+        // Physics body
+        this.physics.add.existing(container);
+        container.body.setSize(32, 70);
+        container.body.setOffset(-16, -40);
+        container.body.setCollideWorldBounds(true);
+
+        // Store references for animations
+        container.leftArm = leftArm;
+        container.rightArm = rightArm;
+        container.leftLeg = leftLeg;
+        container.rightLeg = rightLeg;
+        container.shadow = shadow;
+        container.playerColor = shirtColor;
+
+        return container;
+    }
+
+    // -------------------------------------------------------------------------
+    // BALLOON CREATION
+    // -------------------------------------------------------------------------
+    createBalloon() {
+        const { width } = this.scale;
+
+        this.balloon = this.add.container(width/2, 280);
+
+        // Shadow
+        const shadow = this.add.ellipse(0, 80, 30, 12, 0x000000, 0.25);
+        this.balloon.add(shadow);
+        this.balloon.shadow = shadow;
+
+        // String
+        const stringGraphics = this.add.graphics();
+        stringGraphics.lineStyle(2, 0x888888);
+        stringGraphics.lineBetween(0, 20, 0, 50);
+        this.balloon.add(stringGraphics);
+
+        // Balloon body
+        const balloonBody = this.add.circle(0, 0, 22, 0xff6b6b);
+        balloonBody.setStrokeStyle(2, 0xffffff);
+        this.balloon.add(balloonBody);
+
+        // Highlight
+        const highlight = this.add.circle(-6, -8, 6, 0xffffff, 0.4);
+        this.balloon.add(highlight);
+
+        // Tie
+        const tie = this.add.polygon(0, 22, [[0, 0], [-4, 6], [4, 6]], 0xff5252);
+        this.balloon.add(tie);
+
+        // Physics
+        this.physics.add.existing(this.balloon);
+        this.balloon.body.setCircle(22);
+        this.balloon.body.setOffset(-22, -22);
+        this.balloon.body.setBounce(CONFIG.balloon.baseBounce, CONFIG.balloon.baseBounce);
+        this.balloon.body.setMaxVelocity(CONFIG.balloon.maxVelocity, CONFIG.balloon.maxVelocity);
+        this.balloon.body.setGravityY(CONFIG.balloon.baseGravity);
+        this.balloon.body.setCollideWorldBounds(true);
+    }
+
+    // -------------------------------------------------------------------------
+    // OBSTACLES
+    // -------------------------------------------------------------------------
+    createObstacles() {
+        this.obstacles = this.physics.add.staticGroup();
+        this.obstacleVisuals = [];
+
+        // Initial obstacles - adjusted for larger room
+        this.addObstacle(200, 380, 90, 45, 0x6b4423); // Table
+        this.addObstacle(700, 420, 70, 70, 0x5d5d7a); // Box
+        this.addObstacle(450, 550, 110, 35, 0x6b4423); // Low table
+    }
+
+    addObstacle(x, y, w, h, color) {
+        // Visual
+        const visual = this.add.container(x, y);
+
+        // Top surface
+        const top = this.add.rectangle(0, -h/4, w, h/2, Phaser.Display.Color.ValueToColor(color).lighten(30).color);
+        top.setStrokeStyle(1, 0x000000, 0.3);
+        visual.add(top);
+
+        // Front
+        const front = this.add.rectangle(0, h/4, w, h/2, color);
+        front.setStrokeStyle(1, 0x000000, 0.3);
+        visual.add(front);
+
+        this.obstacleVisuals.push({ visual, x, y, w, h, color });
+
+        // Physics (invisible)
+        const physicsBody = this.add.rectangle(x, y, w, h);
+        physicsBody.setAlpha(0);
+        this.obstacles.add(physicsBody);
+    }
+
+    clearObstacles() {
+        this.obstacles.clear(true, true);
+        this.obstacleVisuals.forEach(o => o.visual.destroy());
+        this.obstacleVisuals = [];
+    }
+
+    setupLevelObstacles() {
+        this.clearObstacles();
+
+        const level = this.gameState.level;
+
+        // Base obstacles - adjusted for larger room
+        this.addObstacle(200, 380, 90, 45, 0x6b4423);
+        this.addObstacle(700, 420, 70, 70, 0x5d5d7a);
+
+        if (level >= 2) {
+            this.addObstacle(450, 280, 80, 40, 0x6b4423);
+        }
+        if (level >= 3) {
+            this.addObstacle(150, 520, 55, 55, 0x5d5d7a);
+            this.addObstacle(750, 320, 55, 55, 0x5d5d7a);
+        }
+        if (level >= 5) {
+            this.addObstacle(450, 500, 130, 35, 0x6b4423);
+        }
+        if (level >= 7) {
+            this.addObstacle(320, 220, 65, 45, 0x5d5d7a);
+            this.addObstacle(580, 220, 65, 45, 0x5d5d7a);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // UI
+    // -------------------------------------------------------------------------
+    createUI() {
+        // HUD background panel
+        const hudBg = this.add.rectangle(450, 85, 880, 130, 0x1a1a2e, 0.85);
+        hudBg.setDepth(90);
+
+        // Lives display
+        this.livesText = this.add.text(50, 50, '', {
+            fontSize: '22px',
+            fontFamily: 'Arial',
+            color: '#ff6b6b'
+        }).setDepth(100);
+
+        // Player 1 score
+        this.score1Text = this.add.text(50, 100, '', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#4a90d9'
+        }).setDepth(100);
+
+        // Player 2 score
+        this.score2Text = this.add.text(50, 125, '', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#e67e22'
+        }).setDepth(100);
+
+        // Level display
+        this.levelText = this.add.text(450, 50, '', {
+            fontSize: '28px',
+            fontFamily: 'Arial Black',
+            color: '#4ecdc4'
+        }).setOrigin(0.5, 0).setDepth(100);
+
+        // Timer display
+        this.timerText = this.add.text(850, 50, '', {
+            fontSize: '22px',
+            fontFamily: 'Arial',
+            color: '#ffd93d'
+        }).setOrigin(1, 0).setDepth(100);
+
+        // Streak display
+        this.streakText = this.add.text(50, 80, '', {
+            fontSize: '15px',
+            fontFamily: 'Arial',
+            color: '#95e1d3'
+        }).setDepth(100);
+
+        // Brother indicator
+        this.brotherIndicator = this.add.text(450, 120, '', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ff7675',
+            backgroundColor: '#2d3436',
+            padding: { x: 8, y: 4 }
+        }).setOrigin(0.5).setVisible(false).setDepth(100);
+
+
+        // Pause overlay
+        this.pauseOverlay = this.add.container(450, 400);
+        const pauseBg = this.add.rectangle(0, 0, 300, 150, 0x000000, 0.8);
+        const pauseText = this.add.text(0, -20, 'PAUSED', {
+            fontSize: '48px',
+            fontFamily: 'Arial Black',
+            color: '#fff'
+        }).setOrigin(0.5);
+        const pauseHint = this.add.text(0, 30, 'Press P to resume', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#aaa'
+        }).setOrigin(0.5);
+        this.pauseOverlay.add([pauseBg, pauseText, pauseHint]);
+        this.pauseOverlay.setVisible(false);
+        this.pauseOverlay.setDepth(100);
+
+        this.updateUI();
+    }
+
+    updateUI() {
+        const { level, sharedLives, levelTimer, streakTimer } = this.gameState;
+
+        // Lives (hearts)
+        let hearts = '';
+        for (let i = 0; i < CONFIG.rules.maxLives; i++) {
+            hearts += i < sharedLives ? '❤️ ' : '🖤 ';
+        }
+        this.livesText.setText(hearts);
+
+        // Level
+        this.levelText.setText(`Level ${level}`);
+
+        // Scores
+        if (this.playerCount === 1) {
+            this.score1Text.setText(`Score: ${this.player1State.score}`);
+            this.score2Text.setVisible(false);
+        } else {
+            this.score1Text.setText(`P1: ${this.player1State.score}`);
+            this.score2Text.setText(`P2: ${this.player2State.score}`);
+            this.score2Text.setVisible(true);
+        }
+
+        // Timer
+        this.timerText.setText(`⏱️ ${Math.ceil(levelTimer)}s`);
+
+        // Streak
+        const timeToLife = CONFIG.rules.streakForLife - streakTimer;
+        if (sharedLives < CONFIG.rules.maxLives && timeToLife > 0) {
+            this.streakText.setText(`💚 Life in: ${timeToLife.toFixed(1)}s`);
+            this.streakText.setVisible(true);
+        } else if (sharedLives >= CONFIG.rules.maxLives) {
+            this.streakText.setText('💚 Lives full!');
+            this.streakText.setVisible(true);
+        } else {
+            this.streakText.setVisible(false);
+        }
+
+        // Brother indicator
+        if (this.brother && this.gameState.level >= 7) {
+            this.brotherIndicator.setVisible(true);
+            this.brotherIndicator.setText(this.gameState.brotherActive ? '👦 BROTHER ACTIVE!' : '👦 Brother resting...');
+            this.brotherIndicator.setColor(this.gameState.brotherActive ? '#ff7675' : '#636e72');
+        } else {
+            this.brotherIndicator.setVisible(false);
+        }
+
+    }
+
+    // -------------------------------------------------------------------------
+    // INPUT
+    // -------------------------------------------------------------------------
+    setupInput() {
+        // Controls based on player count
+        if (this.playerCount === 1) {
+            // Single player - use arrow keys
+            this.keys = {
+                p1: {
+                    up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+                    down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+                    left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+                    right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+                    hit: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+                },
+                p2: null,
+                pause: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P),
+                exit: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+            };
+        } else {
+            // Two players - P1: WASD, P2: Arrows
+            this.keys = {
+                p1: {
+                    up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+                    down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+                    left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+                    right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+                    hit: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+                },
+                p2: {
+                    up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+                    down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+                    left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+                    right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+                    hit: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
+                },
+                pause: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P),
+                exit: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+            };
+        }
+
+        // Pause toggle
+        this.keys.pause.on('down', () => this.togglePause());
+
+        // Exit to start screen
+        this.keys.exit.on('down', () => this.scene.start('StartScene'));
+    }
+
+    togglePause() {
+        this.gameState.isPaused = !this.gameState.isPaused;
+        this.pauseOverlay.setVisible(this.gameState.isPaused);
+
+        soundManager.playPause();
+
+        if (this.gameState.isPaused) {
+            this.physics.pause();
+        } else {
+            this.physics.resume();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // TIMERS
+    // -------------------------------------------------------------------------
+    setupTimers() {
+        // Wind change timer
+        this.time.addEvent({
+            delay: CONFIG.balloon.windChangeInterval,
+            callback: this.changeWind,
+            callbackScope: this,
+            loop: true
+        });
+    }
+
+    changeWind() {
+        if (this.gameState.isPaused) return;
+
+        this.gameState.wind = {
+            x: Phaser.Math.FloatBetween(-CONFIG.balloon.windStrength, CONFIG.balloon.windStrength),
+            y: Phaser.Math.FloatBetween(-CONFIG.balloon.windStrength/2, CONFIG.balloon.windStrength/2)
+        };
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLISIONS
+    // -------------------------------------------------------------------------
+    setupCollisions() {
+        // Players collide with walls and obstacles
+        this.physics.add.collider(this.player1, this.walls);
+        this.physics.add.collider(this.player1, this.obstacles);
+
+        if (this.player2) {
+            this.physics.add.collider(this.player2, this.walls);
+            this.physics.add.collider(this.player2, this.obstacles);
+        }
+        // Players can pass through each other
+
+        // Balloon collides with walls only (not obstacles - top-down abstraction)
+        this.physics.add.collider(this.balloon, this.walls, this.onBalloonWallHit, null, this);
+    }
+
+    onBalloonWallHit() {
+        // Small bounce effect
+        this.balloon.body.velocity.x *= 0.9;
+        this.balloon.body.velocity.y *= 0.9;
+
+        // Play wall bounce sound
+        soundManager.playWallBounce();
+    }
+
+    // -------------------------------------------------------------------------
+    // LEVEL ENTITIES
+    // -------------------------------------------------------------------------
+    setupLevelEntities() {
+        const level = this.gameState.level;
+
+        // Clear existing hazards
+        this.hazards.clear(true, true);
+
+        // Setup obstacles for current level
+        this.setupLevelObstacles();
+
+        // Update balloon physics for level
+        this.updateBalloonPhysics();
+
+        // Level 3+: Add roaming hazard (was level 2)
+        if (level >= 3) {
+            this.createHazard();
+        }
+
+        // Level 7+: Add/update brother (was level 6)
+        if (level >= 7) {
+            if (!this.brother) {
+                this.createBrother();
+            }
+            this.gameState.brotherActive = true;
+            this.gameState.brotherPhaseTimer = 0;
+        }
+
+        // Level 8+: Add dog
+        if (level >= 9) {
+            if (!this.dog) {
+                this.createDog();
+            }
+            // Reset pet timers
+            this.player1State.lastPetTime = this.time.now;
+            this.player2State.lastPetTime = this.time.now;
+            this.player1State.hasPettedDog = true;
+            this.player2State.hasPettedDog = true;
+        }
+    }
+
+    updateBalloonPhysics() {
+        const level = this.gameState.level;
+        let gravity = CONFIG.balloon.baseGravity + (level - 1) * CONFIG.balloon.gravityIncreasePerLevel;
+        let bounce = CONFIG.balloon.baseBounce;
+
+        // Level 4+: Heavy balloon
+        if (level >= 4) {
+            gravity *= CONFIG.balloon.heavyGravityMultiplier;
+            bounce -= CONFIG.balloon.heavyBounceReduction;
+        }
+
+        this.balloon.body.setGravityY(gravity);
+        this.balloon.body.setBounce(Math.max(0.3, bounce), Math.max(0.3, bounce));
+    }
+
+    createHazard() {
+        const hazard = this.add.container(
+            Phaser.Math.Between(100, 800),
+            Phaser.Math.Between(220, 550)
+        );
+
+        // Robot body
+        const body = this.add.rectangle(0, 0, 40, 40, 0xe74c3c);
+        body.setStrokeStyle(2, 0xc0392b);
+        hazard.add(body);
+
+        // Eyes
+        const eye1 = this.add.circle(-8, -8, 5, 0xffffff);
+        const eye2 = this.add.circle(8, -8, 5, 0xffffff);
+        const pupil1 = this.add.circle(-8, -8, 2, 0x000000);
+        const pupil2 = this.add.circle(8, -8, 2, 0x000000);
+        hazard.add([eye1, eye2, pupil1, pupil2]);
+
+        // Antenna
+        const antenna = this.add.rectangle(0, -25, 4, 12, 0xe74c3c);
+        const antennaTop = this.add.circle(0, -32, 5, 0xf1c40f);
+        hazard.add([antenna, antennaTop]);
+
+        this.physics.add.existing(hazard);
+        hazard.body.setSize(40, 40);
+        hazard.body.setOffset(-20, -20);
+        hazard.body.setCollideWorldBounds(true);
+        hazard.body.setBounce(1, 1);
+
+        // Set velocity based on level
+        const speed = CONFIG.hazard.baseSpeed + (this.gameState.level - 2) * CONFIG.hazard.speedIncreasePerLevel;
+        hazard.body.setVelocity(
+            Phaser.Math.Between(-speed, speed),
+            Phaser.Math.Between(-speed, speed)
+        );
+
+        this.hazards.add(hazard);
+
+        // Collision with players
+        this.physics.add.overlap(hazard, this.player1, () => this.onHazardHit(this.player1), null, this);
+        if (this.player2) {
+            this.physics.add.overlap(hazard, this.player2, () => this.onHazardHit(this.player2), null, this);
+        }
+    }
+
+    onHazardHit(player) {
+        // Brief invincibility check
+        if (player.invincible) return;
+
+        soundManager.playHazardHit();
+        this.loseLife();
+
+        // Brief invincibility
+        player.invincible = true;
+        this.tweens.add({
+            targets: player,
+            alpha: 0.5,
+            duration: 100,
+            yoyo: true,
+            repeat: 5,
+            onComplete: () => {
+                player.invincible = false;
+                player.setAlpha(1);
+            }
+        });
+    }
+
+    createBrother() {
+        this.brother = this.add.container(450, 250);
+
+        // Shadow (smaller than players - he's the little brother)
+        const shadow = this.add.ellipse(0, 28, 30, 12, 0x000000, 0.35);
+        this.brother.add(shadow);
+
+        // Legs (shorter than players)
+        const leftLeg = this.add.rectangle(-5, 18, 8, 18, 0x2d3436); // Dark shorts
+        leftLeg.setStrokeStyle(1, 0x1e272e);
+        this.brother.add(leftLeg);
+
+        const rightLeg = this.add.rectangle(5, 18, 8, 18, 0x2d3436);
+        rightLeg.setStrokeStyle(1, 0x1e272e);
+        this.brother.add(rightLeg);
+
+        // Shoes
+        const leftShoe = this.add.ellipse(-5, 28, 10, 5, 0xe74c3c); // Red shoes
+        const rightShoe = this.add.ellipse(5, 28, 10, 5, 0xe74c3c);
+        this.brother.add(leftShoe);
+        this.brother.add(rightShoe);
+
+        // Torso (purple mischief shirt)
+        const torso = this.add.rectangle(0, -2, 20, 22, 0x9b59b6);
+        torso.setStrokeStyle(1, 0x8e44ad);
+        this.brother.add(torso);
+
+        // Arms
+        const leftArm = this.add.rectangle(-12, 0, 6, 18, 0xdeb887);
+        leftArm.setStrokeStyle(1, 0xc9a66b);
+        this.brother.add(leftArm);
+
+        const rightArm = this.add.rectangle(12, 0, 6, 18, 0xdeb887);
+        rightArm.setStrokeStyle(1, 0xc9a66b);
+        this.brother.add(rightArm);
+
+        // Hands
+        const leftHand = this.add.circle(-12, 10, 4, 0xdeb887);
+        const rightHand = this.add.circle(12, 10, 4, 0xdeb887);
+        this.brother.add(leftHand);
+        this.brother.add(rightHand);
+
+        // Neck
+        const neck = this.add.rectangle(0, -14, 6, 5, 0xdeb887);
+        this.brother.add(neck);
+
+        // Head (slightly bigger for kid proportions)
+        const head = this.add.ellipse(0, -26, 18, 20, 0xdeb887);
+        head.setStrokeStyle(1, 0xc9a66b);
+        this.brother.add(head);
+
+        // Messy hair
+        const hair = this.add.ellipse(0, -34, 20, 12, 0x2d1f14);
+        this.brother.add(hair);
+        const hairSpike1 = this.add.triangle(-6, -40, 0, 0, -4, 8, 4, 8, 0x2d1f14);
+        const hairSpike2 = this.add.triangle(2, -42, 0, 0, -3, 7, 3, 7, 0x2d1f14);
+        const hairSpike3 = this.add.triangle(8, -39, 0, 0, -3, 6, 3, 6, 0x2d1f14);
+        this.brother.add([hairSpike1, hairSpike2, hairSpike3]);
+
+        // Eyes (mischievous look)
+        const leftEye = this.add.ellipse(-5, -28, 4, 5, 0xffffff);
+        const rightEye = this.add.ellipse(5, -28, 4, 5, 0xffffff);
+        this.brother.add(leftEye);
+        this.brother.add(rightEye);
+
+        // Pupils (looking up at balloon)
+        const leftPupil = this.add.circle(-5, -29, 2, 0x2d2d2d);
+        const rightPupil = this.add.circle(5, -29, 2, 0x2d2d2d);
+        this.brother.add(leftPupil);
+        this.brother.add(rightPupil);
+
+        // Eyebrows (mischievous angle)
+        const leftBrow = this.add.rectangle(-5, -34, 5, 2, 0x2d1f14);
+        leftBrow.setAngle(-15);
+        const rightBrow = this.add.rectangle(5, -34, 5, 2, 0x2d1f14);
+        rightBrow.setAngle(15);
+        this.brother.add(leftBrow);
+        this.brother.add(rightBrow);
+
+        // Mischievous grin
+        const grin = this.add.arc(0, -22, 5, 0, 180, false, 0xc0392b);
+        this.brother.add(grin);
+
+        // Freckles
+        const freckle1 = this.add.circle(-8, -24, 1, 0xc9a66b);
+        const freckle2 = this.add.circle(-6, -22, 1, 0xc9a66b);
+        const freckle3 = this.add.circle(8, -24, 1, 0xc9a66b);
+        const freckle4 = this.add.circle(6, -22, 1, 0xc9a66b);
+        this.brother.add([freckle1, freckle2, freckle3, freckle4]);
+
+        this.physics.add.existing(this.brother);
+        this.brother.body.setSize(26, 55);
+        this.brother.body.setOffset(-13, -30);
+        this.brother.body.setCollideWorldBounds(true);
+
+        this.brother.lastPushTime = 0;
+
+        // Collision with players (bump)
+        this.physics.add.collider(this.brother, this.player1);
+        if (this.player2) {
+            this.physics.add.collider(this.brother, this.player2);
+        }
+        this.physics.add.collider(this.brother, this.obstacles);
+        this.physics.add.collider(this.brother, this.walls);
+    }
+
+    createDog() {
+        this.dog = this.add.container(450, 480);
+
+        // Shadow
+        const shadow = this.add.ellipse(0, 15, 40, 12, 0x000000, 0.3);
+        this.dog.add(shadow);
+
+        // Body
+        const body = this.add.ellipse(0, 0, 45, 25, 0xd4a373);
+        body.setStrokeStyle(2, 0xbc8f5f);
+        this.dog.add(body);
+
+        // Head
+        const head = this.add.circle(-20, -5, 15, 0xd4a373);
+        head.setStrokeStyle(2, 0xbc8f5f);
+        this.dog.add(head);
+
+        // Ears
+        const ear1 = this.add.ellipse(-28, -15, 8, 14, 0xbc8f5f);
+        const ear2 = this.add.ellipse(-12, -15, 8, 14, 0xbc8f5f);
+        this.dog.add([ear1, ear2]);
+
+        // Eyes
+        const eye1 = this.add.circle(-24, -8, 3, 0x000000);
+        const eye2 = this.add.circle(-16, -8, 3, 0x000000);
+        this.dog.add([eye1, eye2]);
+
+        // Nose
+        const nose = this.add.circle(-30, -2, 4, 0x000000);
+        this.dog.add(nose);
+
+        // Tail
+        const tail = this.add.ellipse(25, -5, 15, 8, 0xd4a373);
+        this.dog.add(tail);
+        this.dog.tail = tail;
+
+        this.physics.add.existing(this.dog);
+        this.dog.body.setSize(50, 30);
+        this.dog.body.setOffset(-25, -15);
+        this.dog.body.setCollideWorldBounds(true);
+
+        // Dog targets a player (starts with player 1, switches after pet)
+        this.dog.targetPlayer = this.player1;
+        this.dog.isHappy = false;
+
+        // Tail wag animation
+        this.tweens.add({
+            targets: tail,
+            angle: 20,
+            duration: 200,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Collision with players
+        this.physics.add.collider(this.dog, this.player1);
+        if (this.player2) {
+            this.physics.add.collider(this.dog, this.player2);
+        }
+        this.physics.add.collider(this.dog, this.obstacles);
+        this.physics.add.collider(this.dog, this.walls);
+    }
+
+    // -------------------------------------------------------------------------
+    // MAIN UPDATE LOOP
+    // -------------------------------------------------------------------------
+    update(time, delta) {
+        if (this.gameState.isPaused) return;
+
+        const dt = delta / 1000;
+
+        // Update timers
+        this.updateTimers(dt, time);
+
+        // Handle input
+        this.handlePlayerMovement(this.player1, this.keys.p1, this.player1State);
+        if (this.player2) {
+            this.handlePlayerMovement(this.player2, this.keys.p2, this.player2State);
+        }
+
+        // Handle balloon hits
+        this.handleBalloonHit(this.player1, this.keys.p1, this.player1State, time, true);
+        if (this.player2) {
+            this.handleBalloonHit(this.player2, this.keys.p2, this.player2State, time, false);
+        }
+
+        // Pet actions are now handled in handleBalloonHit
+
+        // Update balloon
+        this.updateBalloon();
+
+        // Check balloon floor collision
+        this.checkBalloonFloor();
+
+        // Update NPCs
+        this.updateBrother(time);
+        this.updateDog(time);
+
+        // Update depth sorting
+        this.updateDepthSorting();
+
+        // Update UI
+        this.updateUI();
+
+        // Update cooldowns
+        this.updateCooldowns(dt, time);
+    }
+
+    updateTimers(dt, time) {
+        // Level timer
+        this.gameState.levelTimer -= dt;
+        if (this.gameState.levelTimer <= 0) {
+            this.advanceLevel();
+        }
+
+        // Streak timer
+        this.gameState.streakTimer += dt;
+        if (this.gameState.streakTimer >= CONFIG.rules.streakForLife) {
+            if (this.gameState.sharedLives < CONFIG.rules.maxLives) {
+                this.gameState.sharedLives++;
+                this.showFloatingText('+1 ❤️', 450, 380, '#00ff00');
+                soundManager.playLifeGained();
+            }
+            this.gameState.streakTimer = 0;
+        }
+
+        // Brother phase timer
+        if (this.brother && this.gameState.level >= 7) {
+            this.gameState.brotherPhaseTimer += dt * 1000;
+            const phaseDuration = this.gameState.brotherActive ?
+                CONFIG.rules.brotherOnDuration : CONFIG.rules.brotherOffDuration;
+
+            if (this.gameState.brotherPhaseTimer >= phaseDuration) {
+                this.gameState.brotherActive = !this.gameState.brotherActive;
+                this.gameState.brotherPhaseTimer = 0;
+
+                // Show/hide brother
+                this.brother.setVisible(this.gameState.brotherActive);
+                this.brother.body.enable = this.gameState.brotherActive;
+            }
+        }
+
+    }
+
+
+    updateCooldowns(dt, time) {
+        // Reserved for future cooldown mechanics
+    }
+
+    handlePlayerMovement(player, keys, state) {
+        // Check if any movement key is pressed
+        const isMoving = keys.left.isDown || keys.right.isDown || keys.up.isDown || keys.down.isDown;
+
+        // Track continuous movement time for auto-run
+        if (isMoving) {
+            state.moveTime += this.game.loop.delta;
+        } else {
+            state.moveTime = 0;
+        }
+
+        // Auto-run after 0.5 seconds of continuous movement
+        const isRunning = state.moveTime > 500;
+        const speed = isRunning ? CONFIG.player.runSpeed : CONFIG.player.speed;
+
+        let vx = 0;
+        let vy = 0;
+
+        if (keys.left.isDown) vx = -speed;
+        if (keys.right.isDown) vx = speed;
+        if (keys.up.isDown) vy = -speed;
+        if (keys.down.isDown) vy = speed;
+
+        // Normalize diagonal movement
+        if (vx !== 0 && vy !== 0) {
+            vx *= 0.707;
+            vy *= 0.707;
+        }
+
+        player.body.setVelocity(vx, vy);
+
+        // Animate legs faster when running
+        player.isRunning = isRunning && isMoving;
+
+        // Keep players within play area
+        if (player.y > CONFIG.floorY - 50) {
+            player.y = CONFIG.floorY - 50;
+        }
+        if (player.y < CONFIG.playAreaTop + 40) {
+            player.y = CONFIG.playAreaTop + 40;
+        }
+    }
+
+    handleBalloonHit(player, keys, state, time, isPlayer1) {
+        if (!Phaser.Input.Keyboard.JustDown(keys.hit)) return;
+
+        // Check cooldown
+        if (time - state.hitCooldown < CONFIG.balloon.hitCooldown) return;
+
+        // Always set cooldown and animate on button press
+        state.hitCooldown = time;
+
+        // Try to pet dog first if nearby (same key)
+        if (this.tryPetDog(player, isPlayer1)) {
+            return; // Petted the dog, don't hit balloon
+        }
+
+        // Always animate hands raising up
+        this.tweens.add({
+            targets: [player.leftArm, player.rightArm],
+            y: -15,  // Arms go up
+            angle: -30,
+            duration: 80,
+            yoyo: true,
+            ease: 'Power2',
+            onComplete: () => {
+                player.leftArm.y = 0;
+                player.rightArm.y = 0;
+                player.leftArm.angle = 0;
+                player.rightArm.angle = 0;
+            }
+        });
+
+        // Visual feedback - player stretches up
+        this.tweens.add({
+            targets: player,
+            scaleY: 1.15,
+            duration: 100,
+            yoyo: true,
+            onComplete: () => {
+                player.setScale(1, 1);
+            }
+        });
+
+        // Check range for actual balloon hit
+        const dx = this.balloon.x - player.x;
+        const dy = this.balloon.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Balloon must be above and within range for actual hit
+        if (distance > CONFIG.balloon.hitRange || this.balloon.y > player.y) return;
+
+        // Apply hit to balloon!
+        const hitAngle = -Math.PI/2 + (dx * 0.01); // Mostly up, slight horizontal
+        const hitForce = CONFIG.balloon.hitForce;
+
+        this.balloon.body.setVelocity(
+            Math.cos(hitAngle) * hitForce + dx * 2,
+            Math.sin(hitAngle) * hitForce
+        );
+
+        // Award points (10 base + level bonus)
+        const points = 10 + (this.gameState.level - 1) * 2;
+        state.score += points;
+
+        // Play hit sound
+        soundManager.playHit();
+
+        // Hit effect on balloon
+        this.tweens.add({
+            targets: this.balloon,
+            scaleX: 1.3,
+            scaleY: 0.8,
+            duration: 80,
+            yoyo: true,
+            onComplete: () => {
+                this.balloon.setScale(1, 1);
+            }
+        });
+
+        this.showFloatingText('HIT!', this.balloon.x, this.balloon.y - 40, '#ffd93d');
+    }
+
+    tryPetDog(player, isPlayer1) {
+        if (!this.dog || this.gameState.level < 9) return false;
+
+        // Check range
+        const dx = this.dog.x - player.x;
+        const dy = this.dog.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > CONFIG.dog.petRange) return false;
+
+        // Pet the dog!
+        soundManager.playPetDog();
+
+        // Visual feedback
+        this.showFloatingText('❤️', this.dog.x, this.dog.y - 30, '#ff69b4');
+
+        // Happy dog animation
+        this.tweens.add({
+            targets: this.dog,
+            y: this.dog.y - 10,
+            duration: 150,
+            yoyo: true
+        });
+
+        // Dog becomes happy and goes to the other player
+        this.dog.isHappy = true;
+        if (this.playerCount === 2) {
+            this.dog.targetPlayer = isPlayer1 ? this.player2 : this.player1;
+        }
+
+        // Reset happy state after a while
+        this.time.delayedCall(3000, () => {
+            if (this.dog) this.dog.isHappy = false;
+        });
+
+        return true; // Pet was successful, don't hit balloon
+    }
+
+    updateBalloon() {
+        // Apply wind
+        this.balloon.body.velocity.x += this.gameState.wind.x * 0.1;
+        this.balloon.body.velocity.y += this.gameState.wind.y * 0.1;
+
+        // Apply damping
+        this.balloon.body.velocity.x *= CONFIG.balloon.damping;
+        this.balloon.body.velocity.y *= CONFIG.balloon.damping;
+
+        // Update shadow position and size based on height
+        const heightRatio = (CONFIG.floorY - this.balloon.y) / (CONFIG.floorY - CONFIG.playAreaTop);
+        const shadowScale = Math.max(0.3, 1 - heightRatio * 0.6);
+        this.balloon.shadow.setScale(shadowScale);
+        this.balloon.shadow.y = 80 + (1 - shadowScale) * 30;
+        this.balloon.shadow.setAlpha(0.3 * shadowScale);
+    }
+
+    checkBalloonFloor() {
+        if (this.balloon.y >= CONFIG.floorY - 10) {
+            this.dropBalloon();
+        }
+    }
+
+    dropBalloon() {
+        this.loseLife();
+        this.resetBalloon();
+
+        // Reset streak
+        this.gameState.streakTimer = 0;
+    }
+
+    loseLife() {
+        this.gameState.sharedLives--;
+
+        // Play life lost sound
+        soundManager.playLifeLost();
+
+        // Screen shake
+        this.cameras.main.shake(200, 0.01);
+
+        // Flash floor red
+        this.tweens.add({
+            targets: this.floorLine,
+            alpha: 1,
+            duration: 100,
+            yoyo: true,
+            repeat: 2
+        });
+
+        this.showFloatingText('-1 ❤️', 450, 380, '#ff0000');
+
+        if (this.gameState.sharedLives <= 0) {
+            this.gameOver();
+        }
+    }
+
+    resetBalloon() {
+        this.balloon.x = this.scale.width / 2;
+        this.balloon.y = 300;
+        this.balloon.body.setVelocity(0, 0);
+    }
+
+    updateBrother(time) {
+        if (!this.brother || !this.gameState.brotherActive) return;
+
+        // Move toward balloon
+        const dx = this.balloon.x - this.brother.x;
+        const dy = this.balloon.y - this.brother.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 10) {
+            const speed = CONFIG.brother.speed;
+            this.brother.body.setVelocity(
+                (dx / distance) * speed,
+                (dy / distance) * speed
+            );
+        }
+
+        // Push balloon down when close
+        if (distance < CONFIG.brother.activationRange) {
+            if (time - this.brother.lastPushTime > CONFIG.brother.pushCooldown) {
+                this.brother.lastPushTime = time;
+
+                // Push balloon downward
+                this.balloon.body.velocity.y += CONFIG.brother.pushStrength;
+
+                // Play push sound
+                soundManager.playBrotherPush();
+
+                // Visual feedback
+                this.showFloatingText('👊', this.balloon.x, this.balloon.y, '#9b59b6');
+            }
+        }
+    }
+
+    updateDog(time) {
+        if (!this.dog || this.gameState.level < 9) return;
+
+        // Get target player (or player1 in single player)
+        const target = this.dog.targetPlayer || this.player1;
+        if (!target) return;
+
+        // Move toward target player
+        const dx = target.x - this.dog.x;
+        const dy = target.y - this.dog.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Speed is faster when happy (just petted)
+        const speed = this.dog.isHappy ? CONFIG.dog.speed * 2 : CONFIG.dog.speed;
+
+        if (distance > 40) {
+            this.dog.body.setVelocity(
+                (dx / distance) * speed,
+                (dy / distance) * speed
+            );
+
+            // Flip dog based on direction
+            this.dog.scaleX = dx > 0 ? -1 : 1;
+        } else {
+            // Close to player, slow down
+            this.dog.body.setVelocity(0, 0);
+        }
+    }
+
+    updateDepthSorting() {
+        // Sort by Y position for 2.5D effect
+        const entities = [this.player1, this.balloon];
+        if (this.player2) {
+            entities.push(this.player2);
+        }
+
+        if (this.brother && this.brother.visible) {
+            entities.push(this.brother);
+        }
+        if (this.dog) {
+            entities.push(this.dog);
+        }
+
+        // Add hazards
+        this.hazards.getChildren().forEach(h => entities.push(h));
+
+        // Add obstacles
+        this.obstacleVisuals.forEach(o => entities.push(o.visual));
+
+        entities.sort((a, b) => a.y - b.y);
+        entities.forEach((e, i) => e.setDepth(i));
+    }
+
+    advanceLevel() {
+        this.gameState.level++;
+        this.gameState.levelTimer = CONFIG.rules.levelDuration;
+
+        // Play level up sound
+        soundManager.playLevelUp();
+
+        // Show level up message
+        this.showFloatingText(`LEVEL ${this.gameState.level}!`, 450, 350, '#4ecdc4', 52);
+
+        // Reset balloon
+        this.resetBalloon();
+
+        // Setup new level entities
+        this.setupLevelEntities();
+
+        // Brief pause effect
+        this.cameras.main.flash(300, 78, 205, 196, false);
+    }
+
+    showFloatingText(text, x, y, color, size = 24) {
+        const floatText = this.add.text(x, y, text, {
+            fontSize: `${size}px`,
+            fontFamily: 'Arial Black',
+            color: color,
+            stroke: '#000',
+            strokeThickness: 3
+        }).setOrigin(0.5).setDepth(200);
+
+        this.tweens.add({
+            targets: floatText,
+            y: y - 50,
+            alpha: 0,
+            duration: 800,
+            ease: 'Power2',
+            onComplete: () => floatText.destroy()
+        });
+    }
+
+    gameOver() {
+        // Play game over sound
+        soundManager.playGameOver();
+
+        // Calculate total score
+        const totalScore = this.player1State.score + (this.player2 ? this.player2State.score : 0);
+
+        // Add points to player data
+        PlayerData.addPoints(totalScore);
+
+        // Save high score
+        const highestLevel = localStorage.getItem('keepyUppy_highestLevel') || 0;
+        if (this.gameState.level > highestLevel) {
+            localStorage.setItem('keepyUppy_highestLevel', this.gameState.level);
+        }
+
+        this.scene.start('GameOverScene', {
+            level: this.gameState.level,
+            highestLevel: Math.max(this.gameState.level, parseInt(highestLevel)),
+            player1Score: this.player1State.score,
+            player2Score: this.player2 ? this.player2State.score : 0,
+            totalScore: totalScore,
+            playerCount: this.playerCount
+        });
+    }
+}
+
+// ============================================================================
+// GAME OVER SCENE
+// ============================================================================
+class GameOverScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameOverScene' });
+    }
+
+    init(data) {
+        this.finalLevel = data.level || 1;
+        this.highestLevel = data.highestLevel || 1;
+        this.player1Score = data.player1Score || 0;
+        this.player2Score = data.player2Score || 0;
+        this.totalScore = data.totalScore || 0;
+        this.playerCount = data.playerCount || 1;
+    }
+
+    create() {
+        const { width, height } = this.scale;
+
+        // Background
+        this.add.rectangle(width/2, height/2, width, height, 0x1a1a2e);
+
+        // Game Over text
+        this.add.text(width/2, 180, 'GAME OVER', {
+            fontSize: '72px',
+            fontFamily: 'Arial Black',
+            color: '#ff6b6b',
+            stroke: '#000',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        // Stats
+        this.add.text(width/2, 280, `Level Reached: ${this.finalLevel}`, {
+            fontSize: '36px',
+            fontFamily: 'Arial',
+            color: '#4ecdc4'
+        }).setOrigin(0.5);
+
+        // High score
+        const isNewRecord = this.finalLevel >= this.highestLevel;
+        this.add.text(width/2, 330, `Highest Level: ${this.highestLevel}${isNewRecord ? ' NEW RECORD!' : ''}`, {
+            fontSize: '22px',
+            fontFamily: 'Arial',
+            color: isNewRecord ? '#ffd93d' : '#888'
+        }).setOrigin(0.5);
+
+        // Player scores
+        let scoreY = 390;
+        if (this.playerCount === 2) {
+            this.add.text(width/2 - 100, scoreY, `P1: ${this.player1Score}`, {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#4a90d9'
+            }).setOrigin(0.5);
+
+            this.add.text(width/2 + 100, scoreY, `P2: ${this.player2Score}`, {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#e67e22'
+            }).setOrigin(0.5);
+            scoreY += 40;
+        } else {
+            this.add.text(width/2, scoreY, `Score: ${this.player1Score}`, {
+                fontSize: '24px',
+                fontFamily: 'Arial',
+                color: '#4a90d9'
+            }).setOrigin(0.5);
+            scoreY += 40;
+        }
+
+        // Total points earned
+        this.add.text(width/2, scoreY, `+${this.totalScore} points earned!`, {
+            fontSize: '20px',
+            fontFamily: 'Arial',
+            color: '#ffd93d'
+        }).setOrigin(0.5);
+
+        // Total points balance
+        this.add.text(width/2, scoreY + 30, `Total Points: ${PlayerData.getPoints()}`, {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#aaa'
+        }).setOrigin(0.5);
+
+        // Restart prompt
+        const restartText = this.add.text(width/2, 540, '[ Press R to Restart ]', {
+            fontSize: '30px',
+            fontFamily: 'Arial',
+            color: '#fff'
+        }).setOrigin(0.5);
+
+        // Blink animation
+        this.tweens.add({
+            targets: restartText,
+            alpha: 0.3,
+            duration: 500,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Input
+        this.input.keyboard.once('keydown-R', () => {
+            this.scene.start('GameScene');
+        });
+
+        // Also allow going back to start
+        this.add.text(width/2, 590, '(or SPACE for title screen)', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#666'
+        }).setOrigin(0.5);
+
+        this.input.keyboard.once('keydown-SPACE', () => {
+            this.scene.start('StartScene');
+        });
+    }
+}
+
+// ============================================================================
+// GAME CONFIGURATION
+// ============================================================================
+const config = {
+    type: Phaser.AUTO,
+    width: CONFIG.width,
+    height: CONFIG.height,
+    parent: 'game-container',
+    backgroundColor: '#1a1a2e',
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
+    },
+    scene: [StartScene, CustomizeScene, GameScene, GameOverScene]
+};
+
+// Start the game
+const game = new Phaser.Game(config);
+    </script>
+</body>
+</html>
