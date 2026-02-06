@@ -1,0 +1,12 @@
+{
+  "name": "keepy-uppy-game",
+  "version": "1.0.0",
+  "description": "Cooperative 2.5D balloon game built with Phaser.js",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
