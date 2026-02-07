@@ -165,6 +165,38 @@ const AVATAR_OPTIONS = {
     ]
 };
 
+// Game powerups that can be purchased for the next game
+const POWERUPS = {
+    nintendo: {
+        id: 'nintendo',
+        name: 'Nintendo',
+        description: 'Keeps the little brother busy',
+        cost: 100,
+        icon: '🎮'
+    },
+    dogWalker: {
+        id: 'dogWalker',
+        name: 'Dog Walker',
+        description: 'Takes the dog for a walk',
+        cost: 80,
+        icon: '🚶'
+    },
+    helium: {
+        id: 'helium',
+        name: 'Helium',
+        description: 'Balloon falls slower',
+        cost: 60,
+        icon: '🎈'
+    },
+    aiFriend: {
+        id: 'aiFriend',
+        name: 'AI Friend',
+        description: 'Helper joins for one round',
+        cost: 150,
+        icon: '🤖'
+    }
+};
+
 // Player data manager
 const PlayerData = {
     data: null,
@@ -237,6 +269,35 @@ const PlayerData = {
     getPlayerOption(playerNum, category) {
         const player = playerNum === 1 ? 'player1' : 'player2';
         return this.data[player][category];
+    },
+
+    // Powerup management
+    getNextGamePowerups() {
+        return this.data.nextGamePowerups || [];
+    },
+
+    buyPowerup(powerupId) {
+        const powerup = POWERUPS[powerupId];
+        if (!powerup) return false;
+        if (this.data.totalPoints < powerup.cost) return false;
+        if (!this.data.nextGamePowerups) {
+            this.data.nextGamePowerups = [];
+        }
+        if (this.data.nextGamePowerups.includes(powerupId)) return false;
+
+        this.data.totalPoints -= powerup.cost;
+        this.data.nextGamePowerups.push(powerupId);
+        this.save();
+        return true;
+    },
+
+    hasPowerup(powerupId) {
+        return (this.data.nextGamePowerups || []).includes(powerupId);
+    },
+
+    clearPowerups() {
+        this.data.nextGamePowerups = [];
+        this.save();
     }
 };
 
@@ -799,85 +860,136 @@ class StartScene extends Phaser.Scene {
         this.add.rectangle(width/2, height/2, width, height, 0x1a1a2e);
 
         // Title
-        this.add.text(width/2, 100, 'KEEPY UPPY', {
-            fontSize: '64px',
+        this.add.text(width/2, 50, 'KEEPY UPPY', {
+            fontSize: '48px',
             fontFamily: 'Arial Black, Arial',
             color: '#ff6b6b',
             stroke: '#000',
-            strokeThickness: 6
+            strokeThickness: 4
         }).setOrigin(0.5);
 
-        this.add.text(width/2, 160, 'Cooperative Balloon Game', {
-            fontSize: '24px',
+        this.add.text(width/2, 95, 'Cooperative Balloon Game', {
+            fontSize: '18px',
             fontFamily: 'Arial',
             color: '#4ecdc4'
         }).setOrigin(0.5);
 
-        // Instructions
-        const instructions = [
-            '🎈 Keep the balloon off the floor!',
-            '',
-            '1 PLAYER: Arrows + SPACE',
-            '',
-            '2 PLAYERS:',
-            '  P1: WASD + SPACE    P2: Arrows + ENTER',
-            '',
-            'P = Pause    ESC = Exit    R = Restart',
-            '',
-            '💡 Hold movement for 1 sec to RUN!',
-            '💡 Keep a streak to regenerate lives!'
-        ];
-
-        this.add.text(width/2, 400, instructions.join('\n'), {
-            fontSize: '17px',
-            fontFamily: 'Arial',
-            color: '#fff',
-            align: 'center',
-            lineSpacing: 5
-        }).setOrigin(0.5);
-
-        // High score
-        const highestLevel = localStorage.getItem('keepyUppy_highestLevel') || 0;
-        this.add.text(width/2, 590, `Highest Level Reached: ${highestLevel}`, {
-            fontSize: '22px',
+        // Points display
+        this.pointsText = this.add.text(width/2, 125, `Points: ${PlayerData.getPoints()}`, {
+            fontSize: '20px',
             fontFamily: 'Arial',
             color: '#ffd93d'
         }).setOrigin(0.5);
 
+        // Left side: Instructions
+        const instructions = [
+            'Keep the balloon off the floor!',
+            '',
+            '1 PLAYER: Arrows + SPACE',
+            '2 PLAYERS:',
+            '  P1: WASD + SPACE',
+            '  P2: Arrows + ENTER',
+            '',
+            'P=Pause  ESC=Exit  R=Restart',
+            '',
+            'Hold movement to RUN!',
+            'Keep streak to heal!'
+        ];
+
+        this.add.text(170, 330, instructions.join('\n'), {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#fff',
+            align: 'center',
+            lineSpacing: 3
+        }).setOrigin(0.5);
+
+        // Right side: Powerups shop
+        this.add.text(width - 180, 170, 'POWERUPS', {
+            fontSize: '22px',
+            fontFamily: 'Arial Black',
+            color: '#e74c3c'
+        }).setOrigin(0.5);
+
+        this.add.text(width - 180, 195, '(for next game)', {
+            fontSize: '12px',
+            fontFamily: 'Arial',
+            color: '#888'
+        }).setOrigin(0.5);
+
+        this.powerupButtons = [];
+        let powerupY = 230;
+        Object.values(POWERUPS).forEach((powerup) => {
+            const owned = PlayerData.hasPowerup(powerup.id);
+            const canAfford = PlayerData.getPoints() >= powerup.cost;
+
+            const btn = this.add.text(width - 180, powerupY,
+                `${powerup.icon} ${powerup.name}`, {
+                fontSize: '16px',
+                fontFamily: 'Arial',
+                color: owned ? '#27ae60' : (canAfford ? '#fff' : '#666'),
+                backgroundColor: owned ? '#1a472a' : '#2d3436',
+                padding: { x: 10, y: 6 }
+            }).setOrigin(0.5).setInteractive({ useHandCursor: !owned && canAfford });
+
+            const costText = this.add.text(width - 180, powerupY + 22,
+                owned ? 'READY!' : `${powerup.cost} pts`, {
+                fontSize: '11px',
+                fontFamily: 'Arial',
+                color: owned ? '#27ae60' : '#ffd93d'
+            }).setOrigin(0.5);
+
+            if (!owned && canAfford) {
+                btn.on('pointerover', () => btn.setBackgroundColor('#3d4436'));
+                btn.on('pointerout', () => btn.setBackgroundColor('#2d3436'));
+                btn.on('pointerdown', () => {
+                    if (PlayerData.buyPowerup(powerup.id)) {
+                        soundManager.init();
+                        soundManager.playHit();
+                        this.scene.restart();
+                    }
+                });
+            }
+
+            this.powerupButtons.push({ btn, costText, powerup });
+            powerupY += 55;
+        });
+
+        // High score
+        const highestLevel = localStorage.getItem('keepyUppy_highestLevel') || 0;
+        this.add.text(width/2, 530, `Highest Level: ${highestLevel}`, {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#ffd93d'
+        }).setOrigin(0.5);
+
+        // Customize button
+        const btnCustomize = this.add.text(width/2, 570, '🎨 Customize Avatar', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#9b59b6'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
         // Player mode selection
-        this.add.text(width/2, 620, 'Select Mode:', {
-            fontSize: '20px',
+        this.add.text(width/2, 610, 'Select Mode:', {
+            fontSize: '18px',
             fontFamily: 'Arial',
             color: '#aaa'
         }).setOrigin(0.5);
 
         // 1 Player button
-        const btn1P = this.add.text(width/2 - 100, 660, '[ 1 Player ]', {
-            fontSize: '24px',
+        const btn1P = this.add.text(width/2 - 90, 650, '[ 1 Player ]', {
+            fontSize: '22px',
             fontFamily: 'Arial',
             color: '#4a90d9'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         // 2 Players button
-        const btn2P = this.add.text(width/2 + 100, 660, '[ 2 Players ]', {
-            fontSize: '24px',
+        const btn2P = this.add.text(width/2 + 90, 650, '[ 2 Players ]', {
+            fontSize: '22px',
             fontFamily: 'Arial',
             color: '#e67e22'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        // Customize button
-        const btnCustomize = this.add.text(width/2, 610, '🎨 Customize', {
-            fontSize: '20px',
-            fontFamily: 'Arial',
-            color: '#9b59b6'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        // Points display
-        this.add.text(width/2, 575, `Points: ${PlayerData.getPoints()}`, {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ffd93d'
-        }).setOrigin(0.5);
 
         // Hover effects
         btn1P.on('pointerover', () => btn1P.setColor('#74b9ff'));
@@ -939,6 +1051,10 @@ class GameScene extends Phaser.Scene {
     init(data) {
         // Get player count from start scene (default to 2)
         this.playerCount = data.playerCount || 2;
+
+        // Get powerups for this game and clear them
+        this.activePowerups = PlayerData.getNextGamePowerups();
+        PlayerData.clearPowerups();
     }
 
     create() {
@@ -952,7 +1068,11 @@ class GameScene extends Phaser.Scene {
             wind: { x: 0, y: 0 },
             brotherActive: false,
             brotherPhaseTimer: 0,
-            playerCount: this.playerCount
+            playerCount: this.playerCount,
+            hasHelium: this.activePowerups.includes('helium'),
+            hasAiFriend: this.activePowerups.includes('aiFriend'),
+            noBrother: this.activePowerups.includes('nintendo'),
+            noDog: this.activePowerups.includes('dogWalker')
         };
 
         // Player states
@@ -1452,6 +1572,20 @@ class GameScene extends Phaser.Scene {
             padding: { x: 8, y: 4 }
         }).setOrigin(0.5).setVisible(false).setDepth(100);
 
+        // Active powerups display
+        const activePowerups = [];
+        if (this.gameState.hasHelium) activePowerups.push('🎈 Helium');
+        if (this.gameState.hasAiFriend) activePowerups.push('🤖 AI Friend');
+        if (this.gameState.noBrother) activePowerups.push('🎮 Nintendo');
+        if (this.gameState.noDog) activePowerups.push('🚶 Dog Walker');
+
+        if (activePowerups.length > 0) {
+            this.add.text(850, 100, activePowerups.join('  '), {
+                fontSize: '14px',
+                fontFamily: 'Arial',
+                color: '#2ecc71'
+            }).setOrigin(1, 0).setDepth(100);
+        }
 
         // Pause overlay
         this.pauseOverlay = this.add.container(450, 400);
@@ -1652,8 +1786,8 @@ class GameScene extends Phaser.Scene {
             this.createHazard();
         }
 
-        // Level 7+: Add/update brother (was level 6)
-        if (level >= 7) {
+        // Level 7+: Add/update brother (was level 6) - unless Nintendo powerup
+        if (level >= 7 && !this.gameState.noBrother) {
             if (!this.brother) {
                 this.createBrother();
             }
@@ -1661,8 +1795,8 @@ class GameScene extends Phaser.Scene {
             this.gameState.brotherPhaseTimer = 0;
         }
 
-        // Level 8+: Add dog
-        if (level >= 9) {
+        // Level 8+: Add dog - unless dogWalker powerup
+        if (level >= 9 && !this.gameState.noDog) {
             if (!this.dog) {
                 this.createDog();
             }
@@ -1671,6 +1805,11 @@ class GameScene extends Phaser.Scene {
             this.player2State.lastPetTime = this.time.now;
             this.player1State.hasPettedDog = true;
             this.player2State.hasPettedDog = true;
+        }
+
+        // Create AI Friend if powerup active and not already created
+        if (this.gameState.hasAiFriend && !this.aiFriend) {
+            this.createAiFriend();
         }
     }
 
@@ -1683,6 +1822,11 @@ class GameScene extends Phaser.Scene {
         if (level >= 4) {
             gravity *= CONFIG.balloon.heavyGravityMultiplier;
             bounce -= CONFIG.balloon.heavyBounceReduction;
+        }
+
+        // Helium powerup: reduce gravity by 40%
+        if (this.gameState.hasHelium) {
+            gravity *= 0.6;
         }
 
         this.balloon.body.setGravityY(gravity);
@@ -1925,6 +2069,129 @@ class GameScene extends Phaser.Scene {
         this.physics.add.collider(this.dog, this.walls);
     }
 
+    createAiFriend() {
+        const { width } = this.scale;
+        this.aiFriend = this.add.container(width - 150, 400);
+
+        // Shadow
+        const shadow = this.add.ellipse(0, 32, 36, 14, 0x000000, 0.35);
+        this.aiFriend.add(shadow);
+
+        // Robot body (friendly robot helper)
+        const body = this.add.rectangle(0, 0, 30, 35, 0x3498db);
+        body.setStrokeStyle(2, 0x2980b9);
+        this.aiFriend.add(body);
+
+        // Head
+        const head = this.add.rectangle(0, -25, 25, 22, 0x3498db);
+        head.setStrokeStyle(2, 0x2980b9);
+        this.aiFriend.add(head);
+
+        // Antenna
+        const antenna = this.add.rectangle(0, -40, 3, 10, 0x2980b9);
+        const antennaTop = this.add.circle(0, -46, 4, 0x2ecc71);
+        this.aiFriend.add(antenna);
+        this.aiFriend.add(antennaTop);
+
+        // Eyes (LED style)
+        const eye1 = this.add.circle(-6, -26, 4, 0x2ecc71);
+        const eye2 = this.add.circle(6, -26, 4, 0x2ecc71);
+        this.aiFriend.add([eye1, eye2]);
+
+        // Smile
+        const smile = this.add.arc(0, -18, 6, 0, 180, false, 0x2ecc71);
+        this.aiFriend.add(smile);
+
+        // Arms
+        const leftArm = this.add.rectangle(-18, 0, 8, 25, 0x3498db);
+        const rightArm = this.add.rectangle(18, 0, 8, 25, 0x3498db);
+        this.aiFriend.add(leftArm);
+        this.aiFriend.add(rightArm);
+
+        // Hands
+        const leftHand = this.add.circle(-18, 14, 6, 0x2980b9);
+        const rightHand = this.add.circle(18, 14, 6, 0x2980b9);
+        this.aiFriend.add(leftHand);
+        this.aiFriend.add(rightHand);
+        this.aiFriend.leftHand = leftHand;
+        this.aiFriend.rightHand = rightHand;
+
+        // Legs
+        const leftLeg = this.add.rectangle(-8, 25, 10, 18, 0x3498db);
+        const rightLeg = this.add.rectangle(8, 25, 10, 18, 0x3498db);
+        this.aiFriend.add(leftLeg);
+        this.aiFriend.add(rightLeg);
+
+        // Label
+        const label = this.add.text(0, 45, 'AI', {
+            fontSize: '12px',
+            fontFamily: 'Arial Bold',
+            color: '#2ecc71',
+            stroke: '#000',
+            strokeThickness: 2
+        }).setOrigin(0.5);
+        this.aiFriend.add(label);
+
+        this.physics.add.existing(this.aiFriend);
+        this.aiFriend.body.setSize(30, 60);
+        this.aiFriend.body.setOffset(-15, -30);
+        this.aiFriend.body.setCollideWorldBounds(true);
+
+        // AI state
+        this.aiFriend.hitCooldown = 0;
+        this.aiFriend.targetX = width / 2;
+
+        this.physics.add.collider(this.aiFriend, this.obstacles);
+        this.physics.add.collider(this.aiFriend, this.walls);
+    }
+
+    updateAiFriend(time) {
+        if (!this.aiFriend) return;
+
+        const balloon = this.balloon;
+        const ai = this.aiFriend;
+
+        // Move towards balloon X position (with some lag)
+        const targetX = Phaser.Math.Clamp(balloon.x, 100, 800);
+        const dx = targetX - ai.x;
+
+        if (Math.abs(dx) > 20) {
+            ai.body.setVelocityX(dx > 0 ? 120 : -120);
+        } else {
+            ai.body.setVelocityX(0);
+        }
+
+        // Try to hit balloon if close and cooldown is over
+        if (ai.hitCooldown <= 0) {
+            const dist = Phaser.Math.Distance.Between(ai.x, ai.y, balloon.x, balloon.y);
+            if (dist < CONFIG.balloon.hitRange + 20) {
+                // Hit the balloon!
+                const angle = Phaser.Math.Angle.Between(ai.x, ai.y, balloon.x, balloon.y);
+                const force = CONFIG.balloon.hitForce * 0.8; // Slightly weaker than players
+                balloon.body.setVelocity(
+                    Math.cos(angle) * force * 0.3,
+                    -force
+                );
+
+                soundManager.playHit();
+                ai.hitCooldown = 800; // Longer cooldown than players
+
+                // Hand animation
+                this.tweens.add({
+                    targets: [ai.leftHand, ai.rightHand],
+                    y: ai.leftHand.y - 10,
+                    duration: 100,
+                    yoyo: true
+                });
+            }
+        } else {
+            ai.hitCooldown -= 16.67; // Approximate frame time
+        }
+
+        // Update depth for 2.5D effect
+        ai.setDepth(ai.y);
+    }
+
     // -------------------------------------------------------------------------
     // MAIN UPDATE LOOP
     // -------------------------------------------------------------------------
@@ -1959,6 +2226,7 @@ class GameScene extends Phaser.Scene {
         // Update NPCs
         this.updateBrother(time);
         this.updateDog(time);
+        this.updateAiFriend(time);
 
         // Update depth sorting
         this.updateDepthSorting();
