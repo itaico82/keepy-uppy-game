@@ -103,7 +103,9 @@ const AVATAR_OPTIONS = {
         { id: 'spiky', name: 'Spiky', cost: 50, spikes: 3 },
         { id: 'mohawk', name: 'Mohawk', cost: 100, spikes: 1, tall: true },
         { id: 'long', name: 'Long', cost: 75, long: true },
-        { id: 'bald', name: 'Bald', cost: 25, bald: true }
+        { id: 'bald', name: 'Bald', cost: 25, bald: true },
+        { id: 'curly', name: 'Curly', cost: 60, curly: true },
+        { id: 'ponytail', name: 'Ponytail', cost: 80, ponytail: true }
     ],
     hairColors: [
         { id: 'brown', name: 'Brown', cost: 0, color: 0x4a3728 },
@@ -112,7 +114,18 @@ const AVATAR_OPTIONS = {
         { id: 'red', name: 'Red', cost: 40, color: 0xc0392b },
         { id: 'blue', name: 'Blue', cost: 60, color: 0x3498db },
         { id: 'pink', name: 'Pink', cost: 60, color: 0xe91e63 },
-        { id: 'green', name: 'Green', cost: 60, color: 0x27ae60 }
+        { id: 'green', name: 'Green', cost: 60, color: 0x27ae60 },
+        { id: 'purple', name: 'Purple', cost: 70, color: 0x8e44ad },
+        { id: 'silver', name: 'Silver', cost: 80, color: 0xbdc3c7 },
+        { id: 'rainbow', name: 'Rainbow', cost: 150, color: 0xff6b6b, rainbow: true }
+    ],
+    hats: [
+        { id: 'none', name: 'None', cost: 0 },
+        { id: 'cap', name: 'Cap', cost: 40, type: 'cap' },
+        { id: 'beanie', name: 'Beanie', cost: 50, type: 'beanie' },
+        { id: 'tophat', name: 'Top Hat', cost: 120, type: 'tophat' },
+        { id: 'crown', name: 'Crown', cost: 200, type: 'crown' },
+        { id: 'bandana', name: 'Bandana', cost: 35, type: 'bandana' }
     ],
     shirtColors: [
         { id: 'blue', name: 'Blue', cost: 0, color: 0x4a90d9 },
@@ -122,7 +135,9 @@ const AVATAR_OPTIONS = {
         { id: 'purple', name: 'Purple', cost: 30, color: 0x9b59b6 },
         { id: 'yellow', name: 'Yellow', cost: 30, color: 0xf1c40f },
         { id: 'black', name: 'Black', cost: 40, color: 0x2d3436 },
-        { id: 'white', name: 'White', cost: 40, color: 0xecf0f1 }
+        { id: 'white', name: 'White', cost: 40, color: 0xecf0f1 },
+        { id: 'cyan', name: 'Cyan', cost: 45, color: 0x00bcd4 },
+        { id: 'magenta', name: 'Magenta', cost: 50, color: 0xe91e63 }
     ],
     shirtStyles: [
         { id: 'plain', name: 'Plain', cost: 0 },
@@ -135,14 +150,18 @@ const AVATAR_OPTIONS = {
         { id: 'brown', name: 'Brown', cost: 20, color: 0x6b4423 },
         { id: 'gray', name: 'Gray', cost: 25, color: 0x636e72 },
         { id: 'white', name: 'White', cost: 35, color: 0xdfe6e9 },
-        { id: 'red', name: 'Red', cost: 40, color: 0xc0392b }
+        { id: 'red', name: 'Red', cost: 40, color: 0xc0392b },
+        { id: 'khaki', name: 'Khaki', cost: 30, color: 0xc3b091 },
+        { id: 'navy', name: 'Navy', cost: 35, color: 0x2c3e50 }
     ],
     shoesColors: [
         { id: 'black', name: 'Black', cost: 0, color: 0x2d2d2d },
         { id: 'white', name: 'White', cost: 20, color: 0xecf0f1 },
         { id: 'red', name: 'Red', cost: 30, color: 0xe74c3c },
         { id: 'blue', name: 'Blue', cost: 30, color: 0x3498db },
-        { id: 'gold', name: 'Gold', cost: 100, color: 0xf39c12 }
+        { id: 'gold', name: 'Gold', cost: 100, color: 0xf39c12 },
+        { id: 'green', name: 'Green', cost: 35, color: 0x27ae60 },
+        { id: 'pink', name: 'Pink', cost: 40, color: 0xe91e63 }
     ]
 };
 
@@ -157,10 +176,11 @@ const PlayerData = {
         } else {
             this.data = {
                 totalPoints: 0,
-                unlockedItems: ['default', 'brown', 'black', 'blue', 'orange', 'plain', 'darkblue', 'black'],
+                unlockedItems: ['default', 'brown', 'black', 'blue', 'orange', 'plain', 'darkblue', 'black', 'none'],
                 player1: {
                     hairStyle: 'default',
                     hairColor: 'brown',
+                    hat: 'none',
                     shirtColor: 'blue',
                     shirtStyle: 'plain',
                     pantsColor: 'darkblue',
@@ -169,6 +189,7 @@ const PlayerData = {
                 player2: {
                     hairStyle: 'default',
                     hairColor: 'black',
+                    hat: 'none',
                     shirtColor: 'orange',
                     shirtStyle: 'plain',
                     pantsColor: 'darkblue',
@@ -417,11 +438,12 @@ class CustomizeScene extends Phaser.Scene {
         this.updatePreview();
 
         // Categories
-        this.categories = ['hairStyle', 'hairColor', 'shirtColor', 'shirtStyle', 'pantsColor', 'shoesColor'];
-        this.categoryNames = ['Hair Style', 'Hair Color', 'Shirt Color', 'Shirt Style', 'Pants Color', 'Shoes Color'];
+        this.categories = ['hairStyle', 'hairColor', 'hat', 'shirtColor', 'shirtStyle', 'pantsColor', 'shoesColor'];
+        this.categoryNames = ['Hair Style', 'Hair Color', 'Hat', 'Shirt Color', 'Shirt Style', 'Pants Color', 'Shoes Color'];
         this.categoryData = [
             AVATAR_OPTIONS.hairStyles,
             AVATAR_OPTIONS.hairColors,
+            AVATAR_OPTIONS.hats,
             AVATAR_OPTIONS.shirtColors,
             AVATAR_OPTIONS.shirtStyles,
             AVATAR_OPTIONS.pantsColors,
@@ -611,15 +633,17 @@ class CustomizeScene extends Phaser.Scene {
         const p = this.editingPlayer;
         const hairStyleId = PlayerData.getPlayerOption(p, 'hairStyle');
         const hairColorId = PlayerData.getPlayerOption(p, 'hairColor');
+        const hatId = PlayerData.getPlayerOption(p, 'hat');
         const shirtColorId = PlayerData.getPlayerOption(p, 'shirtColor');
         const pantsColorId = PlayerData.getPlayerOption(p, 'pantsColor');
         const shoesColorId = PlayerData.getPlayerOption(p, 'shoesColor');
 
         const hairColor = AVATAR_OPTIONS.hairColors.find(h => h.id === hairColorId)?.color || 0x4a3728;
         const shirtColor = AVATAR_OPTIONS.shirtColors.find(s => s.id === shirtColorId)?.color || 0x4a90d9;
-        const pantsColor = AVATAR_OPTIONS.pantsColors.find(p => p.id === pantsColorId)?.color || 0x3d5c8a;
+        const pantsColor = AVATAR_OPTIONS.pantsColors.find(pc => pc.id === pantsColorId)?.color || 0x3d5c8a;
         const shoesColor = AVATAR_OPTIONS.shoesColors.find(s => s.id === shoesColorId)?.color || 0x2d2d2d;
         const hairStyle = AVATAR_OPTIONS.hairStyles.find(h => h.id === hairStyleId) || AVATAR_OPTIONS.hairStyles[0];
+        const hat = AVATAR_OPTIONS.hats.find(h => h.id === hatId) || AVATAR_OPTIONS.hats[0];
 
         // Scale up for preview
         const scale = 2;
@@ -685,11 +709,62 @@ class CustomizeScene extends Phaser.Scene {
                 this.previewContainer.add(longHairR);
             }
 
+            if (hairStyle.curly) {
+                for (let i = 0; i < 5; i++) {
+                    const curlX = (i - 2) * 6 * scale;
+                    const curl = this.add.circle(curlX, -46 * scale, 5 * scale, hairColor);
+                    this.previewContainer.add(curl);
+                }
+            }
+
+            if (hairStyle.ponytail) {
+                const ponytailBase = this.add.ellipse(0, -44 * scale, 8 * scale, 8 * scale, hairColor);
+                const ponytailTail = this.add.ellipse(0, -54 * scale, 6 * scale, 14 * scale, hairColor);
+                this.previewContainer.add(ponytailBase);
+                this.previewContainer.add(ponytailTail);
+            }
+
             // Hair sides
             const hairLeft = this.add.ellipse(-9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
             const hairRight = this.add.ellipse(9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
             this.previewContainer.add(hairLeft);
             this.previewContainer.add(hairRight);
+        }
+
+        // Hat
+        if (hat.type) {
+            if (hat.type === 'cap') {
+                const capTop = this.add.ellipse(0, -46 * scale, 24 * scale, 10 * scale, 0xe74c3c);
+                const capBrim = this.add.ellipse(10 * scale, -44 * scale, 16 * scale, 6 * scale, 0xc0392b);
+                this.previewContainer.add(capTop);
+                this.previewContainer.add(capBrim);
+            } else if (hat.type === 'beanie') {
+                const beanie = this.add.ellipse(0, -46 * scale, 24 * scale, 14 * scale, 0x9b59b6);
+                const beaniePom = this.add.circle(0, -54 * scale, 5 * scale, 0x8e44ad);
+                this.previewContainer.add(beanie);
+                this.previewContainer.add(beaniePom);
+            } else if (hat.type === 'tophat') {
+                const brim = this.add.ellipse(0, -44 * scale, 30 * scale, 8 * scale, 0x2d3436);
+                const top = this.add.rectangle(0, -58 * scale, 18 * scale, 24 * scale, 0x2d3436);
+                this.previewContainer.add(brim);
+                this.previewContainer.add(top);
+            } else if (hat.type === 'crown') {
+                const crownBase = this.add.rectangle(0, -46 * scale, 26 * scale, 10 * scale, 0xf1c40f);
+                const point1 = this.add.triangle(-8 * scale, -56 * scale, 0, 0, -4 * scale, 8 * scale, 4 * scale, 8 * scale, 0xf1c40f);
+                const point2 = this.add.triangle(0, -58 * scale, 0, 0, -4 * scale, 8 * scale, 4 * scale, 8 * scale, 0xf1c40f);
+                const point3 = this.add.triangle(8 * scale, -56 * scale, 0, 0, -4 * scale, 8 * scale, 4 * scale, 8 * scale, 0xf1c40f);
+                const gem = this.add.circle(0, -46 * scale, 3 * scale, 0xe74c3c);
+                this.previewContainer.add(crownBase);
+                this.previewContainer.add(point1);
+                this.previewContainer.add(point2);
+                this.previewContainer.add(point3);
+                this.previewContainer.add(gem);
+            } else if (hat.type === 'bandana') {
+                const bandana = this.add.ellipse(0, -40 * scale, 26 * scale, 8 * scale, 0xe74c3c);
+                const knot = this.add.circle(12 * scale, -38 * scale, 4 * scale, 0xc0392b);
+                this.previewContainer.add(bandana);
+                this.previewContainer.add(knot);
+            }
         }
 
         // Eyes
@@ -1002,15 +1077,18 @@ class GameScene extends Phaser.Scene {
         // Get customization from PlayerData
         const hairStyleId = PlayerData.getPlayerOption(playerNum, 'hairStyle');
         const hairColorId = PlayerData.getPlayerOption(playerNum, 'hairColor');
+        const hatId = PlayerData.getPlayerOption(playerNum, 'hat');
         const shirtColorId = PlayerData.getPlayerOption(playerNum, 'shirtColor');
         const pantsColorId = PlayerData.getPlayerOption(playerNum, 'pantsColor');
         const shoesColorId = PlayerData.getPlayerOption(playerNum, 'shoesColor');
 
-        const hairColor = AVATAR_OPTIONS.hairColors.find(h => h.id === hairColorId)?.color || 0x4a3728;
+        const hairColorObj = AVATAR_OPTIONS.hairColors.find(h => h.id === hairColorId) || AVATAR_OPTIONS.hairColors[0];
+        const hairColor = hairColorObj.color;
         const shirtColor = AVATAR_OPTIONS.shirtColors.find(s => s.id === shirtColorId)?.color || 0x4a90d9;
         const pantsColor = AVATAR_OPTIONS.pantsColors.find(p => p.id === pantsColorId)?.color || 0x3d5c8a;
         const shoesColor = AVATAR_OPTIONS.shoesColors.find(s => s.id === shoesColorId)?.color || 0x2d2d2d;
         const hairStyle = AVATAR_OPTIONS.hairStyles.find(h => h.id === hairStyleId) || AVATAR_OPTIONS.hairStyles[0];
+        const hat = AVATAR_OPTIONS.hats.find(h => h.id === hatId) || AVATAR_OPTIONS.hats[0];
 
         const label = `P${playerNum}`;
         const container = this.add.container(x, y);
@@ -1086,11 +1164,64 @@ class GameScene extends Phaser.Scene {
                 container.add(longHairR);
             }
 
+            // Curly hair
+            if (hairStyle.curly) {
+                for (let i = 0; i < 5; i++) {
+                    const curlX = (i - 2) * 6;
+                    const curl = this.add.circle(curlX, -46, 5, hairColor);
+                    container.add(curl);
+                }
+            }
+
+            // Ponytail
+            if (hairStyle.ponytail) {
+                const ponytailBase = this.add.ellipse(0, -44, 8, 8, hairColor);
+                const ponytailTail = this.add.ellipse(0, -54, 6, 14, hairColor);
+                container.add(ponytailBase);
+                container.add(ponytailTail);
+            }
+
             // Hair sides
             const hairLeft = this.add.ellipse(-9, -34, 6, 12, hairColor);
             const hairRight = this.add.ellipse(9, -34, 6, 12, hairColor);
             container.add(hairLeft);
             container.add(hairRight);
+        }
+
+        // Hat
+        if (hat.type) {
+            if (hat.type === 'cap') {
+                const capTop = this.add.ellipse(0, -46, 24, 10, 0xe74c3c);
+                const capBrim = this.add.ellipse(10, -44, 16, 6, 0xc0392b);
+                container.add(capTop);
+                container.add(capBrim);
+            } else if (hat.type === 'beanie') {
+                const beanie = this.add.ellipse(0, -46, 24, 14, 0x9b59b6);
+                const beaniePom = this.add.circle(0, -54, 5, 0x8e44ad);
+                container.add(beanie);
+                container.add(beaniePom);
+            } else if (hat.type === 'tophat') {
+                const brim = this.add.ellipse(0, -44, 30, 8, 0x2d3436);
+                const top = this.add.rectangle(0, -58, 18, 24, 0x2d3436);
+                container.add(brim);
+                container.add(top);
+            } else if (hat.type === 'crown') {
+                const crownBase = this.add.rectangle(0, -46, 26, 10, 0xf1c40f);
+                const point1 = this.add.triangle(-8, -56, 0, 0, -4, 8, 4, 8, 0xf1c40f);
+                const point2 = this.add.triangle(0, -58, 0, 0, -4, 8, 4, 8, 0xf1c40f);
+                const point3 = this.add.triangle(8, -56, 0, 0, -4, 8, 4, 8, 0xf1c40f);
+                const gem = this.add.circle(0, -46, 3, 0xe74c3c);
+                container.add(crownBase);
+                container.add(point1);
+                container.add(point2);
+                container.add(point3);
+                container.add(gem);
+            } else if (hat.type === 'bandana') {
+                const bandana = this.add.ellipse(0, -40, 26, 8, 0xe74c3c);
+                const knot = this.add.circle(12, -38, 4, 0xc0392b);
+                container.add(bandana);
+                container.add(knot);
+            }
         }
 
         // Eyes
