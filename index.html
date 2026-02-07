@@ -1070,9 +1070,13 @@ class GameScene extends Phaser.Scene {
             brotherPhaseTimer: 0,
             playerCount: this.playerCount,
             hasHelium: this.activePowerups.includes('helium'),
-            hasAiFriend: this.activePowerups.includes('aiFriend'),
-            noBrother: this.activePowerups.includes('nintendo'),
-            noDog: this.activePowerups.includes('dogWalker')
+            // Powerup timers (10 seconds each, activated when distractor spawns)
+            hasNintendoPowerup: this.activePowerups.includes('nintendo'),
+            nintendoTimer: 0, // Counts down when brother is active
+            hasDogWalkerPowerup: this.activePowerups.includes('dogWalker'),
+            dogWalkerTimer: 0, // Counts down when dog is active
+            hasAiFriendPowerup: this.activePowerups.includes('aiFriend'),
+            aiFriendTimer: 0 // Counts down when AI friend is active
         };
 
         // Player states
@@ -1572,18 +1576,34 @@ class GameScene extends Phaser.Scene {
             padding: { x: 8, y: 4 }
         }).setOrigin(0.5).setVisible(false).setDepth(100);
 
-        // Active powerups display
-        const activePowerups = [];
-        if (this.gameState.hasHelium) activePowerups.push('🎈 Helium');
-        if (this.gameState.hasAiFriend) activePowerups.push('🤖 AI Friend');
-        if (this.gameState.noBrother) activePowerups.push('🎮 Nintendo');
-        if (this.gameState.noDog) activePowerups.push('🚶 Dog Walker');
+        // Active powerups display (will be updated in updateUI)
+        this.powerupTexts = [];
+        let powerupY = 100;
 
-        if (activePowerups.length > 0) {
-            this.add.text(850, 100, activePowerups.join('  '), {
-                fontSize: '14px',
-                fontFamily: 'Arial',
-                color: '#2ecc71'
+        if (this.gameState.hasHelium) {
+            const text = this.add.text(850, powerupY, '🎈 Helium', {
+                fontSize: '13px', fontFamily: 'Arial', color: '#2ecc71'
+            }).setOrigin(1, 0).setDepth(100);
+            powerupY += 18;
+        }
+
+        if (this.gameState.hasNintendoPowerup) {
+            this.nintendoText = this.add.text(850, powerupY, '🎮 Nintendo: --', {
+                fontSize: '13px', fontFamily: 'Arial', color: '#2ecc71'
+            }).setOrigin(1, 0).setDepth(100);
+            powerupY += 18;
+        }
+
+        if (this.gameState.hasDogWalkerPowerup) {
+            this.dogWalkerText = this.add.text(850, powerupY, '🚶 Dog Walker: --', {
+                fontSize: '13px', fontFamily: 'Arial', color: '#2ecc71'
+            }).setOrigin(1, 0).setDepth(100);
+            powerupY += 18;
+        }
+
+        if (this.gameState.hasAiFriendPowerup) {
+            this.aiFriendText = this.add.text(850, powerupY, '🤖 AI Friend: --', {
+                fontSize: '13px', fontFamily: 'Arial', color: '#2ecc71'
             }).setOrigin(1, 0).setDepth(100);
         }
 
@@ -1648,12 +1668,53 @@ class GameScene extends Phaser.Scene {
         // Brother indicator
         if (this.brother && this.gameState.level >= 7) {
             this.brotherIndicator.setVisible(true);
-            this.brotherIndicator.setText(this.gameState.brotherActive ? '👦 BROTHER ACTIVE!' : '👦 Brother resting...');
-            this.brotherIndicator.setColor(this.gameState.brotherActive ? '#ff7675' : '#636e72');
+            if (this.gameState.nintendoTimer > 0) {
+                this.brotherIndicator.setText('👦 Playing Nintendo...');
+                this.brotherIndicator.setColor('#2ecc71');
+            } else {
+                this.brotherIndicator.setText(this.gameState.brotherActive ? '👦 BROTHER ACTIVE!' : '👦 Brother resting...');
+                this.brotherIndicator.setColor(this.gameState.brotherActive ? '#ff7675' : '#636e72');
+            }
         } else {
             this.brotherIndicator.setVisible(false);
         }
 
+        // Powerup timers
+        if (this.nintendoText) {
+            if (this.gameState.nintendoTimer > 0) {
+                this.nintendoText.setText(`🎮 Nintendo: ${Math.ceil(this.gameState.nintendoTimer)}s`);
+                this.nintendoText.setColor('#2ecc71');
+            } else if (this.gameState.hasNintendoPowerup && this.brother) {
+                this.nintendoText.setText('🎮 Nintendo: DONE');
+                this.nintendoText.setColor('#e74c3c');
+            } else {
+                this.nintendoText.setText('🎮 Nintendo: waiting...');
+                this.nintendoText.setColor('#888');
+            }
+        }
+
+        if (this.dogWalkerText) {
+            if (this.gameState.dogWalkerTimer > 0) {
+                this.dogWalkerText.setText(`🚶 Dog Walker: ${Math.ceil(this.gameState.dogWalkerTimer)}s`);
+                this.dogWalkerText.setColor('#2ecc71');
+            } else if (this.gameState.hasDogWalkerPowerup && this.dog) {
+                this.dogWalkerText.setText('🚶 Dog Walker: DONE');
+                this.dogWalkerText.setColor('#e74c3c');
+            } else {
+                this.dogWalkerText.setText('🚶 Dog Walker: waiting...');
+                this.dogWalkerText.setColor('#888');
+            }
+        }
+
+        if (this.aiFriendText) {
+            if (this.gameState.aiFriendTimer > 0) {
+                this.aiFriendText.setText(`🤖 AI Friend: ${Math.ceil(this.gameState.aiFriendTimer)}s`);
+                this.aiFriendText.setColor('#2ecc71');
+            } else if (this.gameState.hasAiFriendPowerup) {
+                this.aiFriendText.setText('🤖 AI Friend: DONE');
+                this.aiFriendText.setColor('#e74c3c');
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -1786,19 +1847,27 @@ class GameScene extends Phaser.Scene {
             this.createHazard();
         }
 
-        // Level 7+: Add/update brother (was level 6) - unless Nintendo powerup
-        if (level >= 7 && !this.gameState.noBrother) {
+        // Level 7+: Add/update brother
+        if (level >= 7) {
             if (!this.brother) {
                 this.createBrother();
+                // Start Nintendo timer when brother first spawns
+                if (this.gameState.hasNintendoPowerup && this.gameState.nintendoTimer === 0) {
+                    this.gameState.nintendoTimer = 10; // 10 seconds
+                }
             }
             this.gameState.brotherActive = true;
             this.gameState.brotherPhaseTimer = 0;
         }
 
-        // Level 8+: Add dog - unless dogWalker powerup
-        if (level >= 9 && !this.gameState.noDog) {
+        // Level 9+: Add dog
+        if (level >= 9) {
             if (!this.dog) {
                 this.createDog();
+                // Start Dog Walker timer when dog first spawns
+                if (this.gameState.hasDogWalkerPowerup && this.gameState.dogWalkerTimer === 0) {
+                    this.gameState.dogWalkerTimer = 10; // 10 seconds
+                }
             }
             // Reset pet timers
             this.player1State.lastPetTime = this.time.now;
@@ -1808,8 +1877,9 @@ class GameScene extends Phaser.Scene {
         }
 
         // Create AI Friend if powerup active and not already created
-        if (this.gameState.hasAiFriend && !this.aiFriend) {
+        if (this.gameState.hasAiFriendPowerup && !this.aiFriend) {
             this.createAiFriend();
+            this.gameState.aiFriendTimer = 10; // 10 seconds
         }
     }
 
@@ -2148,6 +2218,11 @@ class GameScene extends Phaser.Scene {
     updateAiFriend(time) {
         if (!this.aiFriend) return;
 
+        // AI Friend timer expired - don't help anymore
+        if (this.gameState.aiFriendTimer <= 0) {
+            return;
+        }
+
         const balloon = this.balloon;
         const ai = this.aiFriend;
 
@@ -2272,6 +2347,35 @@ class GameScene extends Phaser.Scene {
             }
         }
 
+        // Powerup timers - countdown only when the distractor is active
+        if (this.gameState.nintendoTimer > 0 && this.brother && this.gameState.brotherActive) {
+            this.gameState.nintendoTimer -= dt;
+            if (this.gameState.nintendoTimer <= 0) {
+                this.gameState.nintendoTimer = 0;
+                this.showFloatingText('Nintendo battery died!', 450, 300, '#e74c3c');
+            }
+        }
+
+        if (this.gameState.dogWalkerTimer > 0 && this.dog) {
+            this.gameState.dogWalkerTimer -= dt;
+            if (this.gameState.dogWalkerTimer <= 0) {
+                this.gameState.dogWalkerTimer = 0;
+                this.showFloatingText('Dog came back!', 450, 300, '#e74c3c');
+            }
+        }
+
+        if (this.gameState.aiFriendTimer > 0 && this.aiFriend) {
+            this.gameState.aiFriendTimer -= dt;
+            if (this.gameState.aiFriendTimer <= 0) {
+                this.gameState.aiFriendTimer = 0;
+                this.showFloatingText('AI Friend needs to recharge!', 450, 300, '#e74c3c');
+                // Hide AI friend
+                if (this.aiFriend) {
+                    this.aiFriend.setVisible(false);
+                    this.aiFriend.body.enable = false;
+                }
+            }
+        }
     }
 
 
@@ -2505,6 +2609,12 @@ class GameScene extends Phaser.Scene {
     updateBrother(time) {
         if (!this.brother || !this.gameState.brotherActive) return;
 
+        // Nintendo powerup - brother is distracted playing games
+        if (this.gameState.nintendoTimer > 0) {
+            this.brother.body.setVelocity(0, 0);
+            return;
+        }
+
         // Move toward balloon
         const dx = this.balloon.x - this.brother.x;
         const dy = this.balloon.y - this.brother.y;
@@ -2537,6 +2647,17 @@ class GameScene extends Phaser.Scene {
 
     updateDog(time) {
         if (!this.dog || this.gameState.level < 9) return;
+
+        // Dog Walker powerup - dog is out for a walk
+        if (this.gameState.dogWalkerTimer > 0) {
+            this.dog.setVisible(false);
+            this.dog.body.enable = false;
+            return;
+        } else if (this.dog && !this.dog.visible && this.gameState.hasDogWalkerPowerup) {
+            // Dog came back from walk
+            this.dog.setVisible(true);
+            this.dog.body.enable = true;
+        }
 
         // Get target player (or player1 in single player)
         const target = this.dog.targetPlayer || this.player1;
