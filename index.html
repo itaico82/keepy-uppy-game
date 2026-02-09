@@ -829,13 +829,13 @@ class CustomizeScene extends Phaser.Scene {
         }
 
         // Eyes
-        const leftEye = this.add.ellipse(-5 * scale, -30 * scale, 4 * scale, 5 * scale, 0xffffff);
-        const rightEye = this.add.ellipse(5 * scale, -30 * scale, 4 * scale, 5 * scale, 0xffffff);
+        const leftEye = this.add.ellipse(-3 * scale, -30 * scale, 4 * scale, 5 * scale, 0xffffff);
+        const rightEye = this.add.ellipse(3 * scale, -30 * scale, 4 * scale, 5 * scale, 0xffffff);
         this.previewContainer.add(leftEye);
         this.previewContainer.add(rightEye);
 
-        const leftPupil = this.add.circle(-5 * scale, -30 * scale, 2 * scale, 0x2d2d2d);
-        const rightPupil = this.add.circle(5 * scale, -30 * scale, 2 * scale, 0x2d2d2d);
+        const leftPupil = this.add.circle(-3 * scale, -30 * scale, 2 * scale, 0x2d2d2d);
+        const rightPupil = this.add.circle(3 * scale, -30 * scale, 2 * scale, 0x2d2d2d);
         this.previewContainer.add(leftPupil);
         this.previewContainer.add(rightPupil);
 
@@ -1349,20 +1349,20 @@ class GameScene extends Phaser.Scene {
         }
 
         // Eyes
-        const leftEye = this.add.ellipse(-5, -30, 4, 5, 0xffffff);
-        const rightEye = this.add.ellipse(5, -30, 4, 5, 0xffffff);
+        const leftEye = this.add.ellipse(-3, -30, 4, 5, 0xffffff);
+        const rightEye = this.add.ellipse(3, -30, 4, 5, 0xffffff);
         container.add(leftEye);
         container.add(rightEye);
 
         // Pupils
-        const leftPupil = this.add.circle(-5, -30, 2, 0x2d2d2d);
-        const rightPupil = this.add.circle(5, -30, 2, 0x2d2d2d);
+        const leftPupil = this.add.circle(-3, -30, 2, 0x2d2d2d);
+        const rightPupil = this.add.circle(3, -30, 2, 0x2d2d2d);
         container.add(leftPupil);
         container.add(rightPupil);
 
         // Eyebrows
-        const leftBrow = this.add.rectangle(-5, -36, 6, 2, hairColor);
-        const rightBrow = this.add.rectangle(5, -36, 6, 2, hairColor);
+        const leftBrow = this.add.rectangle(-3, -36, 6, 2, hairColor);
+        const rightBrow = this.add.rectangle(3, -36, 6, 2, hairColor);
         container.add(leftBrow);
         container.add(rightBrow);
 
