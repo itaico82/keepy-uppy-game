@@ -105,7 +105,10 @@ const AVATAR_OPTIONS = {
         { id: 'long', name: 'Long', cost: 75, long: true },
         { id: 'bald', name: 'Bald', cost: 25, bald: true },
         { id: 'curly', name: 'Curly', cost: 60, curly: true },
-        { id: 'ponytail', name: 'Ponytail', cost: 80, ponytail: true }
+        { id: 'ponytail', name: 'Ponytail', cost: 80, ponytail: true },
+        { id: 'afro', name: 'Afro', cost: 90, afro: true },
+        { id: 'buzzcut', name: 'Buzz Cut', cost: 35, buzzcut: true },
+        { id: 'sideshave', name: 'Side Shave', cost: 70, sideshave: true }
     ],
     hairColors: [
         { id: 'brown', name: 'Brown', cost: 0, color: 0x4a3728 },
@@ -117,6 +120,9 @@ const AVATAR_OPTIONS = {
         { id: 'green', name: 'Green', cost: 60, color: 0x27ae60 },
         { id: 'purple', name: 'Purple', cost: 70, color: 0x8e44ad },
         { id: 'silver', name: 'Silver', cost: 80, color: 0xbdc3c7 },
+        { id: 'orange', name: 'Orange', cost: 55, color: 0xe67e22 },
+        { id: 'teal', name: 'Teal', cost: 65, color: 0x1abc9c },
+        { id: 'white', name: 'White', cost: 90, color: 0xffffff },
         { id: 'rainbow', name: 'Rainbow', cost: 150, color: 0xff6b6b, rainbow: true }
     ],
     hats: [
@@ -125,7 +131,13 @@ const AVATAR_OPTIONS = {
         { id: 'beanie', name: 'Beanie', cost: 50, type: 'beanie' },
         { id: 'tophat', name: 'Top Hat', cost: 120, type: 'tophat' },
         { id: 'crown', name: 'Crown', cost: 200, type: 'crown' },
-        { id: 'bandana', name: 'Bandana', cost: 35, type: 'bandana' }
+        { id: 'bandana', name: 'Bandana', cost: 35, type: 'bandana' },
+        { id: 'cowboy', name: 'Cowboy', cost: 80, type: 'cowboy' },
+        { id: 'wizard', name: 'Wizard', cost: 150, type: 'wizard' },
+        { id: 'headphones', name: 'Headphones', cost: 70, type: 'headphones' },
+        { id: 'halo', name: 'Halo', cost: 180, type: 'halo' },
+        { id: 'horns', name: 'Horns', cost: 130, type: 'horns' },
+        { id: 'bow', name: 'Bow', cost: 45, type: 'bow' }
     ],
     shirtColors: [
         { id: 'blue', name: 'Blue', cost: 0, color: 0x4a90d9 },
@@ -137,12 +149,19 @@ const AVATAR_OPTIONS = {
         { id: 'black', name: 'Black', cost: 40, color: 0x2d3436 },
         { id: 'white', name: 'White', cost: 40, color: 0xecf0f1 },
         { id: 'cyan', name: 'Cyan', cost: 45, color: 0x00bcd4 },
-        { id: 'magenta', name: 'Magenta', cost: 50, color: 0xe91e63 }
+        { id: 'magenta', name: 'Magenta', cost: 50, color: 0xe91e63 },
+        { id: 'lime', name: 'Lime', cost: 35, color: 0x7bed9f },
+        { id: 'coral', name: 'Coral', cost: 45, color: 0xff7f50 },
+        { id: 'navy', name: 'Navy', cost: 35, color: 0x2c3e50 },
+        { id: 'gold', name: 'Gold', cost: 80, color: 0xffd700 }
     ],
     shirtStyles: [
         { id: 'plain', name: 'Plain', cost: 0 },
         { id: 'striped', name: 'Striped', cost: 50 },
-        { id: 'numbered', name: 'Numbered', cost: 30 }
+        { id: 'numbered', name: 'Numbered', cost: 30 },
+        { id: 'star', name: 'Star', cost: 60 },
+        { id: 'heart', name: 'Heart', cost: 55 },
+        { id: 'lightning', name: 'Lightning', cost: 70 }
     ],
     pantsColors: [
         { id: 'darkblue', name: 'Dark Blue', cost: 0, color: 0x3d5c8a },
@@ -152,7 +171,11 @@ const AVATAR_OPTIONS = {
         { id: 'white', name: 'White', cost: 35, color: 0xdfe6e9 },
         { id: 'red', name: 'Red', cost: 40, color: 0xc0392b },
         { id: 'khaki', name: 'Khaki', cost: 30, color: 0xc3b091 },
-        { id: 'navy', name: 'Navy', cost: 35, color: 0x2c3e50 }
+        { id: 'navy', name: 'Navy', cost: 35, color: 0x2c3e50 },
+        { id: 'olive', name: 'Olive', cost: 30, color: 0x808000 },
+        { id: 'purple', name: 'Purple', cost: 45, color: 0x9b59b6 },
+        { id: 'pink', name: 'Pink', cost: 50, color: 0xff69b4 },
+        { id: 'camo', name: 'Camo', cost: 65, color: 0x4b5320 }
     ],
     shoesColors: [
         { id: 'black', name: 'Black', cost: 0, color: 0x2d2d2d },
@@ -161,7 +184,11 @@ const AVATAR_OPTIONS = {
         { id: 'blue', name: 'Blue', cost: 30, color: 0x3498db },
         { id: 'gold', name: 'Gold', cost: 100, color: 0xf39c12 },
         { id: 'green', name: 'Green', cost: 35, color: 0x27ae60 },
-        { id: 'pink', name: 'Pink', cost: 40, color: 0xe91e63 }
+        { id: 'pink', name: 'Pink', cost: 40, color: 0xe91e63 },
+        { id: 'purple', name: 'Purple', cost: 45, color: 0x9b59b6 },
+        { id: 'orange', name: 'Orange', cost: 35, color: 0xe67e22 },
+        { id: 'rainbow', name: 'Rainbow', cost: 120, color: 0xff6b6b },
+        { id: 'silver', name: 'Silver', cost: 80, color: 0xc0c0c0 }
     ]
 };
 
@@ -795,11 +822,28 @@ class CustomizeScene extends Phaser.Scene {
                 this.previewContainer.add(ponytailTail);
             }
 
-            // Hair sides
-            const hairLeft = this.add.ellipse(-9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
-            const hairRight = this.add.ellipse(9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
-            this.previewContainer.add(hairLeft);
-            this.previewContainer.add(hairRight);
+            if (hairStyle.afro) {
+                const afro = this.add.circle(0, -38 * scale, 16 * scale, hairColor);
+                this.previewContainer.add(afro);
+            }
+
+            if (hairStyle.buzzcut) {
+                const buzz = this.add.ellipse(0, -38 * scale, 18 * scale, 10 * scale, hairColor);
+                this.previewContainer.add(buzz);
+            }
+
+            if (hairStyle.sideshave) {
+                const topHair = this.add.ellipse(3 * scale, -42 * scale, 16 * scale, 12 * scale, hairColor);
+                this.previewContainer.add(topHair);
+            }
+
+            // Hair sides (skip for some styles)
+            if (!hairStyle.afro && !hairStyle.buzzcut) {
+                const hairLeft = this.add.ellipse(-9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
+                const hairRight = this.add.ellipse(9 * scale, -34 * scale, 6 * scale, 12 * scale, hairColor);
+                this.previewContainer.add(hairLeft);
+                this.previewContainer.add(hairRight);
+            }
         }
 
         // Hat
@@ -835,6 +879,38 @@ class CustomizeScene extends Phaser.Scene {
                 const knot = this.add.circle(12 * scale, -38 * scale, 4 * scale, 0xc0392b);
                 this.previewContainer.add(bandana);
                 this.previewContainer.add(knot);
+            } else if (hat.type === 'cowboy') {
+                const brim = this.add.ellipse(0, -44 * scale, 34 * scale, 8 * scale, 0x8B4513);
+                const top = this.add.ellipse(0, -52 * scale, 18 * scale, 12 * scale, 0x8B4513);
+                this.previewContainer.add(brim);
+                this.previewContainer.add(top);
+            } else if (hat.type === 'wizard') {
+                const base = this.add.ellipse(0, -44 * scale, 28 * scale, 8 * scale, 0x4a148c);
+                const cone = this.add.triangle(0, -70 * scale, 0, 0, -12 * scale, 30 * scale, 12 * scale, 30 * scale, 0x4a148c);
+                this.previewContainer.add(base);
+                this.previewContainer.add(cone);
+            } else if (hat.type === 'headphones') {
+                const band = this.add.ellipse(0, -46 * scale, 26 * scale, 8 * scale, 0x2d3436);
+                const leftEar = this.add.circle(-12 * scale, -38 * scale, 6 * scale, 0x2d3436);
+                const rightEar = this.add.circle(12 * scale, -38 * scale, 6 * scale, 0x2d3436);
+                this.previewContainer.add(band);
+                this.previewContainer.add(leftEar);
+                this.previewContainer.add(rightEar);
+            } else if (hat.type === 'halo') {
+                const halo = this.add.ellipse(0, -52 * scale, 20 * scale, 6 * scale, 0xffd700);
+                this.previewContainer.add(halo);
+            } else if (hat.type === 'horns') {
+                const leftHorn = this.add.triangle(-10 * scale, -50 * scale, 0, 0, -4 * scale, 14 * scale, 4 * scale, 14 * scale, 0x8b0000);
+                const rightHorn = this.add.triangle(10 * scale, -50 * scale, 0, 0, -4 * scale, 14 * scale, 4 * scale, 14 * scale, 0x8b0000);
+                this.previewContainer.add(leftHorn);
+                this.previewContainer.add(rightHorn);
+            } else if (hat.type === 'bow') {
+                const bowLeft = this.add.ellipse(-6 * scale, -46 * scale, 10 * scale, 8 * scale, 0xff69b4);
+                const bowRight = this.add.ellipse(6 * scale, -46 * scale, 10 * scale, 8 * scale, 0xff69b4);
+                const bowCenter = this.add.circle(0, -46 * scale, 4 * scale, 0xff1493);
+                this.previewContainer.add(bowLeft);
+                this.previewContainer.add(bowRight);
+                this.previewContainer.add(bowCenter);
             }
         }
 
@@ -1315,11 +1391,31 @@ class GameScene extends Phaser.Scene {
                 container.add(ponytailTail);
             }
 
-            // Hair sides
-            const hairLeft = this.add.ellipse(-9, -34, 6, 12, hairColor);
-            const hairRight = this.add.ellipse(9, -34, 6, 12, hairColor);
-            container.add(hairLeft);
-            container.add(hairRight);
+            // Afro
+            if (hairStyle.afro) {
+                const afro = this.add.circle(0, -38, 16, hairColor);
+                container.add(afro);
+            }
+
+            // Buzz cut
+            if (hairStyle.buzzcut) {
+                const buzz = this.add.ellipse(0, -38, 18, 10, hairColor);
+                container.add(buzz);
+            }
+
+            // Side shave
+            if (hairStyle.sideshave) {
+                const topHair = this.add.ellipse(3, -42, 16, 12, hairColor);
+                container.add(topHair);
+            }
+
+            // Hair sides (skip for some styles)
+            if (!hairStyle.afro && !hairStyle.buzzcut) {
+                const hairLeft = this.add.ellipse(-9, -34, 6, 12, hairColor);
+                const hairRight = this.add.ellipse(9, -34, 6, 12, hairColor);
+                container.add(hairLeft);
+                container.add(hairRight);
+            }
         }
 
         // Hat
@@ -1355,6 +1451,41 @@ class GameScene extends Phaser.Scene {
                 const knot = this.add.circle(12, -38, 4, 0xc0392b);
                 container.add(bandana);
                 container.add(knot);
+            } else if (hat.type === 'cowboy') {
+                const brim = this.add.ellipse(0, -44, 34, 8, 0x8B4513);
+                const top = this.add.ellipse(0, -52, 18, 12, 0x8B4513);
+                container.add(brim);
+                container.add(top);
+            } else if (hat.type === 'wizard') {
+                const base = this.add.ellipse(0, -44, 28, 8, 0x4a148c);
+                const cone = this.add.triangle(0, -70, 0, 0, -12, 30, 12, 30, 0x4a148c);
+                const star = this.add.star(0, -55, 5, 3, 6, 0xffd700);
+                container.add(base);
+                container.add(cone);
+                container.add(star);
+            } else if (hat.type === 'headphones') {
+                const band = this.add.ellipse(0, -46, 26, 8, 0x2d3436);
+                const leftEar = this.add.circle(-12, -38, 6, 0x2d3436);
+                const rightEar = this.add.circle(12, -38, 6, 0x2d3436);
+                container.add(band);
+                container.add(leftEar);
+                container.add(rightEar);
+            } else if (hat.type === 'halo') {
+                const halo = this.add.ellipse(0, -52, 20, 6, 0xffd700);
+                halo.setStrokeStyle(2, 0xffec8b);
+                container.add(halo);
+            } else if (hat.type === 'horns') {
+                const leftHorn = this.add.triangle(-10, -50, 0, 0, -4, 14, 4, 14, 0x8b0000);
+                const rightHorn = this.add.triangle(10, -50, 0, 0, -4, 14, 4, 14, 0x8b0000);
+                container.add(leftHorn);
+                container.add(rightHorn);
+            } else if (hat.type === 'bow') {
+                const bowLeft = this.add.ellipse(-6, -46, 10, 8, 0xff69b4);
+                const bowRight = this.add.ellipse(6, -46, 10, 8, 0xff69b4);
+                const bowCenter = this.add.circle(0, -46, 4, 0xff1493);
+                container.add(bowLeft);
+                container.add(bowRight);
+                container.add(bowCenter);
             }
         }
 
