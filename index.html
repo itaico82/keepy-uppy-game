@@ -1076,7 +1076,7 @@ class GameScene extends Phaser.Scene {
             hasDogWalkerPowerup: this.activePowerups.includes('dogWalker'),
             dogWalkerTimer: 0, // Counts down when dog is active
             hasAiFriendPowerup: this.activePowerups.includes('aiFriend'),
-            aiFriendTimer: 0 // Counts down when AI friend is active
+            aiFriendUsedThisLevel: false // AI friend saves one ball per level then disappears
         };
 
         // Player states
@@ -1602,7 +1602,7 @@ class GameScene extends Phaser.Scene {
         }
 
         if (this.gameState.hasAiFriendPowerup) {
-            this.aiFriendText = this.add.text(850, powerupY, '🤖 AI Friend: --', {
+            this.aiFriendText = this.add.text(850, powerupY, '🤖 AI Friend: Ready', {
                 fontSize: '13px', fontFamily: 'Arial', color: '#2ecc71'
             }).setOrigin(1, 0).setDepth(100);
         }
@@ -1707,12 +1707,12 @@ class GameScene extends Phaser.Scene {
         }
 
         if (this.aiFriendText) {
-            if (this.gameState.aiFriendTimer > 0) {
-                this.aiFriendText.setText(`🤖 AI Friend: ${Math.ceil(this.gameState.aiFriendTimer)}s`);
+            if (this.gameState.aiFriendUsedThisLevel) {
+                this.aiFriendText.setText('🤖 AI Friend: Used');
+                this.aiFriendText.setColor('#888');
+            } else {
+                this.aiFriendText.setText('🤖 AI Friend: Ready');
                 this.aiFriendText.setColor('#2ecc71');
-            } else if (this.gameState.hasAiFriendPowerup) {
-                this.aiFriendText.setText('🤖 AI Friend: DONE');
-                this.aiFriendText.setColor('#e74c3c');
             }
         }
     }
@@ -1876,10 +1876,16 @@ class GameScene extends Phaser.Scene {
             this.player2State.hasPettedDog = true;
         }
 
-        // Create AI Friend if powerup active and not already created
-        if (this.gameState.hasAiFriendPowerup && !this.aiFriend) {
-            this.createAiFriend();
-            this.gameState.aiFriendTimer = 10; // 10 seconds
+        // Reset AI Friend for new level (appears once per level, saves one ball)
+        if (this.gameState.hasAiFriendPowerup) {
+            this.gameState.aiFriendUsedThisLevel = false;
+            if (!this.aiFriend) {
+                this.createAiFriend();
+            } else {
+                // Show AI friend again for new level
+                this.aiFriend.setVisible(true);
+                this.aiFriend.body.enable = true;
+            }
         }
     }
 
@@ -2218,8 +2224,8 @@ class GameScene extends Phaser.Scene {
     updateAiFriend(time) {
         if (!this.aiFriend) return;
 
-        // AI Friend timer expired - don't help anymore
-        if (this.gameState.aiFriendTimer <= 0) {
+        // AI Friend already used this level - stay hidden
+        if (this.gameState.aiFriendUsedThisLevel) {
             return;
         }
 
@@ -2236,31 +2242,33 @@ class GameScene extends Phaser.Scene {
             ai.body.setVelocityX(0);
         }
 
-        // Try to hit balloon if close and cooldown is over
-        if (ai.hitCooldown <= 0) {
-            const dist = Phaser.Math.Distance.Between(ai.x, ai.y, balloon.x, balloon.y);
-            if (dist < CONFIG.balloon.hitRange + 20) {
-                // Hit the balloon!
-                const angle = Phaser.Math.Angle.Between(ai.x, ai.y, balloon.x, balloon.y);
-                const force = CONFIG.balloon.hitForce * 0.8; // Slightly weaker than players
-                balloon.body.setVelocity(
-                    Math.cos(angle) * force * 0.3,
-                    -force
-                );
+        // Try to hit balloon if close
+        const dist = Phaser.Math.Distance.Between(ai.x, ai.y, balloon.x, balloon.y);
+        if (dist < CONFIG.balloon.hitRange + 20) {
+            // Hit the balloon!
+            const angle = Phaser.Math.Angle.Between(ai.x, ai.y, balloon.x, balloon.y);
+            const force = CONFIG.balloon.hitForce * 0.9;
+            balloon.body.setVelocity(
+                Math.cos(angle) * force * 0.3,
+                -force
+            );
 
-                soundManager.playHit();
-                ai.hitCooldown = 800; // Longer cooldown than players
+            soundManager.playHit();
+            this.showFloatingText('🤖 Save!', ai.x, ai.y - 50, '#2ecc71');
 
-                // Hand animation
-                this.tweens.add({
-                    targets: [ai.leftHand, ai.rightHand],
-                    y: ai.leftHand.y - 10,
-                    duration: 100,
-                    yoyo: true
-                });
-            }
-        } else {
-            ai.hitCooldown -= 16.67; // Approximate frame time
+            // Hand animation then disappear
+            this.tweens.add({
+                targets: [ai.leftHand, ai.rightHand],
+                y: ai.leftHand.y - 10,
+                duration: 100,
+                yoyo: true,
+                onComplete: () => {
+                    // AI Friend disappears after saving the ball
+                    this.gameState.aiFriendUsedThisLevel = true;
+                    ai.setVisible(false);
+                    ai.body.enable = false;
+                }
+            });
         }
 
         // Update depth for 2.5D effect
@@ -2364,18 +2372,6 @@ class GameScene extends Phaser.Scene {
             }
         }
 
-        if (this.gameState.aiFriendTimer > 0 && this.aiFriend) {
-            this.gameState.aiFriendTimer -= dt;
-            if (this.gameState.aiFriendTimer <= 0) {
-                this.gameState.aiFriendTimer = 0;
-                this.showFloatingText('AI Friend needs to recharge!', 450, 300, '#e74c3c');
-                // Hide AI friend
-                if (this.aiFriend) {
-                    this.aiFriend.setVisible(false);
-                    this.aiFriend.body.enable = false;
-                }
-            }
-        }
     }
 
 
