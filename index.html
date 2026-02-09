@@ -1401,6 +1401,8 @@ class GameScene extends Phaser.Scene {
         // Store references for animations
         container.leftArm = leftArm;
         container.rightArm = rightArm;
+        container.leftHand = leftHand;
+        container.rightHand = rightHand;
         container.leftLeg = leftLeg;
         container.rightLeg = rightLeg;
         container.shadow = shadow;
@@ -2441,7 +2443,7 @@ class GameScene extends Phaser.Scene {
             return; // Petted the dog, don't hit balloon
         }
 
-        // Always animate hands raising up
+        // Always animate arms raising up
         this.tweens.add({
             targets: [player.leftArm, player.rightArm],
             y: -15,  // Arms go up
@@ -2454,6 +2456,19 @@ class GameScene extends Phaser.Scene {
                 player.rightArm.y = 0;
                 player.leftArm.angle = 0;
                 player.rightArm.angle = 0;
+            }
+        });
+
+        // Animate hands with arms
+        this.tweens.add({
+            targets: [player.leftHand, player.rightHand],
+            y: -3,  // Hands go up (from 12 to -3)
+            duration: 80,
+            yoyo: true,
+            ease: 'Power2',
+            onComplete: () => {
+                player.leftHand.y = 12;
+                player.rightHand.y = 12;
             }
         });
 
