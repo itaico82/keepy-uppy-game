@@ -205,10 +205,16 @@ const PlayerData = {
         const saved = localStorage.getItem('keepyUppy_playerData');
         if (saved) {
             this.data = JSON.parse(saved);
+            // Migrate old data format (shared unlockedItems) to new format (per-player)
+            if (this.data.unlockedItems && !this.data.player1.unlockedItems) {
+                this.data.player1.unlockedItems = [...this.data.unlockedItems];
+                this.data.player2.unlockedItems = [...this.data.unlockedItems];
+                delete this.data.unlockedItems;
+                this.save();
+            }
         } else {
             this.data = {
                 totalPoints: 0,
-                unlockedItems: ['default', 'brown', 'black', 'blue', 'orange', 'plain', 'darkblue', 'black', 'none'],
                 player1: {
                     hairStyle: 'default',
                     hairColor: 'brown',
@@ -216,7 +222,8 @@ const PlayerData = {
                     shirtColor: 'blue',
                     shirtStyle: 'plain',
                     pantsColor: 'darkblue',
-                    shoesColor: 'black'
+                    shoesColor: 'black',
+                    unlockedItems: ['default', 'brown', 'blue', 'plain', 'darkblue', 'black', 'none']
                 },
                 player2: {
                     hairStyle: 'default',
@@ -225,7 +232,8 @@ const PlayerData = {
                     shirtColor: 'orange',
                     shirtStyle: 'plain',
                     pantsColor: 'darkblue',
-                    shoesColor: 'black'
+                    shoesColor: 'black',
+                    unlockedItems: ['default', 'black', 'orange', 'plain', 'darkblue', 'black', 'none']
                 }
             };
             this.save();
@@ -246,14 +254,16 @@ const PlayerData = {
         return this.data.totalPoints;
     },
 
-    isUnlocked(itemId) {
-        return this.data.unlockedItems.includes(itemId);
+    isUnlocked(itemId, playerNum) {
+        const player = playerNum === 1 ? 'player1' : 'player2';
+        return this.data[player].unlockedItems.includes(itemId);
     },
 
-    unlock(itemId, cost) {
-        if (this.data.totalPoints >= cost && !this.isUnlocked(itemId)) {
+    unlock(itemId, cost, playerNum) {
+        const player = playerNum === 1 ? 'player1' : 'player2';
+        if (this.data.totalPoints >= cost && !this.isUnlocked(itemId, playerNum)) {
             this.data.totalPoints -= cost;
-            this.data.unlockedItems.push(itemId);
+            this.data[player].unlockedItems.push(itemId);
             this.save();
             return true;
         }
@@ -603,7 +613,7 @@ class CustomizeScene extends Phaser.Scene {
 
         options.forEach((opt, i) => {
             const y = i * 50;
-            const isUnlocked = PlayerData.isUnlocked(opt.id);
+            const isUnlocked = PlayerData.isUnlocked(opt.id, this.editingPlayer);
             const isSelected = currentValue === opt.id;
 
             // Option background
@@ -650,14 +660,14 @@ class CustomizeScene extends Phaser.Scene {
     }
 
     selectOption(opt, category) {
-        if (PlayerData.isUnlocked(opt.id)) {
+        if (PlayerData.isUnlocked(opt.id, this.editingPlayer)) {
             // Already unlocked, just select it
             PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
             this.refreshOptionsList();
             this.updatePreview();
         } else if (PlayerData.getPoints() >= opt.cost) {
             // Buy and select
-            if (PlayerData.unlock(opt.id, opt.cost)) {
+            if (PlayerData.unlock(opt.id, opt.cost, this.editingPlayer)) {
                 PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
                 this.pointsText.setText(`Points: ${PlayerData.getPoints()}`);
                 this.refreshOptionsList();
