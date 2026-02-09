@@ -1894,6 +1894,11 @@ class GameScene extends Phaser.Scene {
         let gravity = CONFIG.balloon.baseGravity + (level - 1) * CONFIG.balloon.gravityIncreasePerLevel;
         let bounce = CONFIG.balloon.baseBounce;
 
+        // Levels 1-2: Easier - slower balloon
+        if (level <= 2) {
+            gravity *= 0.6;
+        }
+
         // Level 4+: Heavy balloon
         if (level >= 4) {
             gravity *= CONFIG.balloon.heavyGravityMultiplier;
