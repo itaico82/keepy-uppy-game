@@ -108,7 +108,11 @@ const AVATAR_OPTIONS = {
         { id: 'ponytail', name: 'Ponytail', cost: 80, ponytail: true },
         { id: 'afro', name: 'Afro', cost: 90, afro: true },
         { id: 'buzzcut', name: 'Buzz Cut', cost: 35, buzzcut: true },
-        { id: 'sideshave', name: 'Side Shave', cost: 70, sideshave: true }
+        { id: 'sideshave', name: 'Side Shave', cost: 70, sideshave: true },
+        { id: 'pigtails', name: 'Pigtails', cost: 65, pigtails: true },
+        { id: 'braids', name: 'Braids', cost: 85, braids: true },
+        { id: 'bun', name: 'Bun', cost: 55, bun: true },
+        { id: 'wavylong', name: 'Wavy Long', cost: 95, wavylong: true }
     ],
     hairColors: [
         { id: 'brown', name: 'Brown', cost: 0, color: 0x4a3728 },
@@ -137,7 +141,12 @@ const AVATAR_OPTIONS = {
         { id: 'headphones', name: 'Headphones', cost: 70, type: 'headphones' },
         { id: 'halo', name: 'Halo', cost: 180, type: 'halo' },
         { id: 'horns', name: 'Horns', cost: 130, type: 'horns' },
-        { id: 'bow', name: 'Bow', cost: 45, type: 'bow' }
+        { id: 'bow', name: 'Bow', cost: 45, type: 'bow' },
+        { id: 'tiara', name: 'Tiara', cost: 160, type: 'tiara' },
+        { id: 'flower', name: 'Flower', cost: 40, type: 'flower' },
+        { id: 'catears', name: 'Cat Ears', cost: 90, type: 'catears' },
+        { id: 'bunnyears', name: 'Bunny Ears', cost: 100, type: 'bunnyears' },
+        { id: 'hairclips', name: 'Hair Clips', cost: 30, type: 'hairclips' }
     ],
     shirtColors: [
         { id: 'blue', name: 'Blue', cost: 0, color: 0x4a90d9 },
@@ -1409,8 +1418,38 @@ class GameScene extends Phaser.Scene {
                 container.add(topHair);
             }
 
+            // Pigtails
+            if (hairStyle.pigtails) {
+                const leftPigtail = this.add.ellipse(-14, -30, 6, 16, hairColor);
+                const rightPigtail = this.add.ellipse(14, -30, 6, 16, hairColor);
+                container.add(leftPigtail);
+                container.add(rightPigtail);
+            }
+
+            // Braids
+            if (hairStyle.braids) {
+                const leftBraid = this.add.ellipse(-12, -28, 5, 22, hairColor);
+                const rightBraid = this.add.ellipse(12, -28, 5, 22, hairColor);
+                container.add(leftBraid);
+                container.add(rightBraid);
+            }
+
+            // Bun
+            if (hairStyle.bun) {
+                const bun = this.add.circle(0, -50, 8, hairColor);
+                container.add(bun);
+            }
+
+            // Wavy Long
+            if (hairStyle.wavylong) {
+                const longHairL = this.add.ellipse(-11, -28, 10, 26, hairColor);
+                const longHairR = this.add.ellipse(11, -28, 10, 26, hairColor);
+                container.add(longHairL);
+                container.add(longHairR);
+            }
+
             // Hair sides (skip for some styles)
-            if (!hairStyle.afro && !hairStyle.buzzcut) {
+            if (!hairStyle.afro && !hairStyle.buzzcut && !hairStyle.pigtails && !hairStyle.braids) {
                 const hairLeft = this.add.ellipse(-9, -34, 6, 12, hairColor);
                 const hairRight = this.add.ellipse(9, -34, 6, 12, hairColor);
                 container.add(hairLeft);
@@ -1486,6 +1525,49 @@ class GameScene extends Phaser.Scene {
                 container.add(bowLeft);
                 container.add(bowRight);
                 container.add(bowCenter);
+            } else if (hat.type === 'tiara') {
+                const base = this.add.ellipse(0, -44, 22, 6, 0xc0c0c0);
+                const gem1 = this.add.circle(-6, -48, 3, 0xff69b4);
+                const gem2 = this.add.circle(0, -50, 4, 0x00bfff);
+                const gem3 = this.add.circle(6, -48, 3, 0xff69b4);
+                container.add(base);
+                container.add(gem1);
+                container.add(gem2);
+                container.add(gem3);
+            } else if (hat.type === 'flower') {
+                const stem = this.add.rectangle(10, -44, 2, 8, 0x27ae60);
+                const petal1 = this.add.circle(10, -50, 4, 0xff69b4);
+                const petal2 = this.add.circle(14, -48, 4, 0xff69b4);
+                const petal3 = this.add.circle(6, -48, 4, 0xff69b4);
+                const center = this.add.circle(10, -48, 3, 0xf1c40f);
+                container.add(stem);
+                container.add(petal1);
+                container.add(petal2);
+                container.add(petal3);
+                container.add(center);
+            } else if (hat.type === 'catears') {
+                const leftEar = this.add.triangle(-10, -50, 0, 0, -6, 12, 6, 12, 0x2d3436);
+                const rightEar = this.add.triangle(10, -50, 0, 0, -6, 12, 6, 12, 0x2d3436);
+                const leftInner = this.add.triangle(-10, -48, 0, 0, -3, 8, 3, 8, 0xff69b4);
+                const rightInner = this.add.triangle(10, -48, 0, 0, -3, 8, 3, 8, 0xff69b4);
+                container.add(leftEar);
+                container.add(rightEar);
+                container.add(leftInner);
+                container.add(rightInner);
+            } else if (hat.type === 'bunnyears') {
+                const leftEar = this.add.ellipse(-8, -58, 6, 18, 0xffffff);
+                const rightEar = this.add.ellipse(8, -58, 6, 18, 0xffffff);
+                const leftInner = this.add.ellipse(-8, -56, 3, 12, 0xff69b4);
+                const rightInner = this.add.ellipse(8, -56, 3, 12, 0xff69b4);
+                container.add(leftEar);
+                container.add(rightEar);
+                container.add(leftInner);
+                container.add(rightInner);
+            } else if (hat.type === 'hairclips') {
+                const clip1 = this.add.rectangle(-10, -40, 6, 3, 0xff69b4);
+                const clip2 = this.add.rectangle(10, -40, 6, 3, 0x00bfff);
+                container.add(clip1);
+                container.add(clip2);
             }
         }
 
