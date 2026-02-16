@@ -702,7 +702,49 @@ class CustomizeScene extends Phaser.Scene {
             this.refreshOptionsList();
             this.updatePreview();
         } else if (PlayerData.getPoints() >= opt.cost) {
-            // Buy and select
+            // Show buy confirmation
+            this.showBuyConfirm(opt, category);
+        } else {
+            // Not enough points
+            this.showMessage('Not enough points!');
+        }
+    }
+
+    showBuyConfirm(opt, category) {
+        // Remove existing confirm dialog if any
+        if (this.confirmDialog) {
+            this.confirmDialog.destroy();
+        }
+
+        this.confirmDialog = this.add.container(450, 550);
+
+        const bg = this.add.rectangle(0, 0, 300, 80, 0x2d3436);
+        bg.setStrokeStyle(2, 0x4ecdc4);
+        this.confirmDialog.add(bg);
+
+        const text = this.add.text(0, -20, `Buy "${opt.name}" for ${opt.cost} pts?`, {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#fff'
+        }).setOrigin(0.5);
+        this.confirmDialog.add(text);
+
+        const yesBtn = this.add.text(-50, 15, '[ Yes ]', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#2ecc71'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        const noBtn = this.add.text(50, 15, '[ No ]', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#e74c3c'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this.confirmDialog.add(yesBtn);
+        this.confirmDialog.add(noBtn);
+
+        yesBtn.on('pointerdown', () => {
             if (PlayerData.unlock(opt.id, opt.cost, this.editingPlayer)) {
                 PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
                 this.pointsText.setText(`Points: ${PlayerData.getPoints()}`);
@@ -710,10 +752,14 @@ class CustomizeScene extends Phaser.Scene {
                 this.updatePreview();
                 soundManager.playLifeGained();
             }
-        } else {
-            // Not enough points
-            this.showMessage('Not enough points!');
-        }
+            this.confirmDialog.destroy();
+            this.confirmDialog = null;
+        });
+
+        noBtn.on('pointerdown', () => {
+            this.confirmDialog.destroy();
+            this.confirmDialog = null;
+        });
     }
 
     showMessage(text) {
