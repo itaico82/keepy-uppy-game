@@ -636,19 +636,76 @@ class CustomizeScene extends Phaser.Scene {
     }
 
     createOptionsList() {
+        // Scrollable area settings
+        this.scrollY = 0;
+        this.maxVisibleItems = 7;
+        this.itemHeight = 50;
+        this.listHeight = this.maxVisibleItems * this.itemHeight;
+
+        // Create container for options
         this.optionsContainer = this.add.container(350, 170);
+
+        // Create mask for scrolling
+        const maskShape = this.add.graphics();
+        maskShape.fillStyle(0xffffff);
+        maskShape.fillRect(250, 160, 220, this.listHeight);
+        const mask = maskShape.createGeometryMask();
+        this.optionsContainer.setMask(mask);
+
+        // Scroll buttons
+        this.scrollUpBtn = this.add.text(560, 180, '▲', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#4ecdc4'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this.scrollDownBtn = this.add.text(560, 480, '▼', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#4ecdc4'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this.scrollUpBtn.on('pointerdown', () => this.scrollList(-1));
+        this.scrollDownBtn.on('pointerdown', () => this.scrollList(1));
+
+        // Mouse wheel scrolling
+        this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
+            if (pointer.x > 250 && pointer.x < 570 && pointer.y > 160 && pointer.y < 520) {
+                this.scrollList(deltaY > 0 ? 1 : -1);
+            }
+        });
+
         this.refreshOptionsList();
+    }
+
+    scrollList(direction) {
+        const options = this.categoryData[this.currentCategory];
+        const maxScroll = Math.max(0, options.length - this.maxVisibleItems);
+
+        this.scrollY = Phaser.Math.Clamp(this.scrollY + direction, 0, maxScroll);
+        this.optionsContainer.y = 170 - (this.scrollY * this.itemHeight);
+        this.updateScrollButtons();
+    }
+
+    updateScrollButtons() {
+        const options = this.categoryData[this.currentCategory];
+        const maxScroll = Math.max(0, options.length - this.maxVisibleItems);
+
+        this.scrollUpBtn.setColor(this.scrollY > 0 ? '#4ecdc4' : '#444');
+        this.scrollDownBtn.setColor(this.scrollY < maxScroll ? '#4ecdc4' : '#444');
     }
 
     refreshOptionsList() {
         this.optionsContainer.removeAll(true);
+        this.scrollY = 0;
+        this.optionsContainer.y = 170;
 
         const options = this.categoryData[this.currentCategory];
         const category = this.categories[this.currentCategory];
         const currentValue = PlayerData.getPlayerOption(this.editingPlayer, category);
 
         options.forEach((opt, i) => {
-            const y = i * 50;
+            const y = i * this.itemHeight;
             const isUnlocked = PlayerData.isUnlocked(opt.id, this.editingPlayer);
             const isSelected = currentValue === opt.id;
 
@@ -693,6 +750,8 @@ class CustomizeScene extends Phaser.Scene {
             bg.setInteractive({ useHandCursor: true });
             bg.on('pointerdown', () => this.selectOption(opt, category));
         });
+
+        this.updateScrollButtons();
     }
 
     selectOption(opt, category) {
