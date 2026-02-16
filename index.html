@@ -701,62 +701,87 @@ class CustomizeScene extends Phaser.Scene {
             PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
             this.refreshOptionsList();
             this.updatePreview();
-        } else if (PlayerData.getPoints() >= opt.cost) {
-            // Show buy confirmation
-            this.showBuyConfirm(opt, category);
         } else {
-            // Not enough points
-            this.showMessage('Not enough points!');
+            // Not owned - show preview for trying on
+            this.showTryOn(opt, category);
         }
     }
 
-    showBuyConfirm(opt, category) {
-        // Remove existing confirm dialog if any
+    showTryOn(opt, category) {
+        // Remove existing dialog if any
         if (this.confirmDialog) {
             this.confirmDialog.destroy();
         }
 
+        // Save original value
+        const originalValue = PlayerData.getPlayerOption(this.editingPlayer, category);
+
+        // Temporarily set the option to preview it
+        this.previewOption = { category, originalValue };
+        PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
+        this.updatePreview();
+
+        // Show try-on dialog
         this.confirmDialog = this.add.container(450, 550);
 
-        const bg = this.add.rectangle(0, 0, 300, 80, 0x2d3436);
+        const bg = this.add.rectangle(0, 0, 320, 100, 0x2d3436);
         bg.setStrokeStyle(2, 0x4ecdc4);
         this.confirmDialog.add(bg);
 
-        const text = this.add.text(0, -20, `Buy "${opt.name}" for ${opt.cost} pts?`, {
+        const tryingText = this.add.text(0, -30, `Trying: "${opt.name}"`, {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#4ecdc4'
+        }).setOrigin(0.5);
+        this.confirmDialog.add(tryingText);
+
+        const canAfford = PlayerData.getPoints() >= opt.cost;
+
+        const buyBtn = this.add.text(-70, 15, `[ Buy ${opt.cost} pts ]`, {
             fontSize: '16px',
             fontFamily: 'Arial',
-            color: '#fff'
+            color: canAfford ? '#2ecc71' : '#666'
         }).setOrigin(0.5);
-        this.confirmDialog.add(text);
 
-        const yesBtn = this.add.text(-50, 15, '[ Yes ]', {
-            fontSize: '18px',
-            fontFamily: 'Arial',
-            color: '#2ecc71'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        if (canAfford) {
+            buyBtn.setInteractive({ useHandCursor: true });
+        }
 
-        const noBtn = this.add.text(50, 15, '[ No ]', {
-            fontSize: '18px',
+        const cancelBtn = this.add.text(70, 15, '[ Cancel ]', {
+            fontSize: '16px',
             fontFamily: 'Arial',
             color: '#e74c3c'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-        this.confirmDialog.add(yesBtn);
-        this.confirmDialog.add(noBtn);
+        this.confirmDialog.add(buyBtn);
+        this.confirmDialog.add(cancelBtn);
 
-        yesBtn.on('pointerdown', () => {
-            if (PlayerData.unlock(opt.id, opt.cost, this.editingPlayer)) {
-                PlayerData.setPlayerOption(this.editingPlayer, category, opt.id);
+        if (!canAfford) {
+            const notEnough = this.add.text(0, -5, 'Not enough points', {
+                fontSize: '12px',
+                fontFamily: 'Arial',
+                color: '#e74c3c'
+            }).setOrigin(0.5);
+            this.confirmDialog.add(notEnough);
+        }
+
+        buyBtn.on('pointerdown', () => {
+            if (canAfford && PlayerData.unlock(opt.id, opt.cost, this.editingPlayer)) {
+                // Already set from preview, just save
                 this.pointsText.setText(`Points: ${PlayerData.getPoints()}`);
                 this.refreshOptionsList();
-                this.updatePreview();
                 soundManager.playLifeGained();
             }
+            this.previewOption = null;
             this.confirmDialog.destroy();
             this.confirmDialog = null;
         });
 
-        noBtn.on('pointerdown', () => {
+        cancelBtn.on('pointerdown', () => {
+            // Revert to original
+            PlayerData.setPlayerOption(this.editingPlayer, category, originalValue);
+            this.updatePreview();
+            this.previewOption = null;
             this.confirmDialog.destroy();
             this.confirmDialog = null;
         });
